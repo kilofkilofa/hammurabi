@@ -14,7 +14,7 @@ from hammurabi import config
 
 
 class Verdict(Enum):
-    """Final evaluation of the ruler after the ten-year term.
+    """Final evaluation of the ruler after the term.
 
     The order follows the original game: worse verdicts are checked first.
     """
@@ -31,6 +31,8 @@ class GameState:
 
     Attributes:
         year: Number of years elapsed (2 means the game is in its second year).
+        term_years: Length of the term being played, in years: the classic ten
+            unless the marathon was chosen.
         population: People currently living in the city.
         acres: Acres of land owned.
         bushels: Bushels of grain in the store.
@@ -52,6 +54,7 @@ class GameState:
     """
 
     year: int = 0
+    term_years: int = config.TERM_YEARS
     population: int = config.START_POPULATION
     acres: int = config.START_ACRES
     bushels: int = config.START_BUSHELS

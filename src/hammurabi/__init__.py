@@ -5,7 +5,7 @@ the engine is free of terminal I/O, and only ``ui`` and ``main`` touch the
 console. See ``docs/architecture.md`` for the full design.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 __all__ = ["__version__"]
 

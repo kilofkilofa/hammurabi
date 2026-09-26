@@ -37,8 +37,9 @@ term lasts 10 years.
 
 ## How long a reign lasts
 
-Five hundred games per policy. "Completed" means the ten years were played and
-the term was scored; "impeached mid-term" means the reign ended inside a year.
+Five hundred games per policy. "Completed" means the classic ten years were
+played and the term was scored; "impeached mid-term" means the reign ended inside
+a year.
 The verdict columns count every game, so a policy's national-fink column is
 larger than its mid-term impeachments by the few terms that were played to the
 end and still scored as a national fink.
@@ -131,13 +132,48 @@ The starver policy is absent from both tables: it never reaches the tenth year.
 - **No constant needed tuning.** Every rate the batches measure matches the rule
   it comes from, so the numbers in `config.py` stay the vintage ones.
 
+## The marathon term
+
+The marathon rule set is the vintage game stretched to a century: the same rules
+(`--years 100`) and the same four policies, five hundred games each (seeds 0-499),
+with only the length of the term changed. The city grows with the immigrants while
+the store that feeds it does not, so a reign that survives the classic decade
+usually meets its 45% year long before the hundredth.
+
+| Policy | Games | Completed | Impeached mid-term | Fantastic | Mediocre | Tyrant | National fink |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| careful (marathon) | 500 | 1 | 499 | 1 | 0 | 0 | 499 |
+| trader (marathon) | 500 | 0 | 500 | 0 | 0 | 0 | 500 |
+| seller (marathon) | 500 | 0 | 500 | 0 | 0 | 0 | 500 |
+| starver (marathon) | 500 | 0 | 500 | 0 | 0 | 0 | 500 |
+
+| Policy | Mean years played | Mean year of a mid-term impeachment |
+| --- | --- | --- |
+| careful (marathon) | 11.19 | 11.01 |
+| trader (marathon) | 4.37 | 4.37 |
+| seller (marathon) | 23.22 | 23.22 |
+| starver (marathon) | 1.00 | 1.00 |
+
+- The careful ruler is impeached in the eleventh year on average and finishes the
+  marathon in 1 game of 500 (seed 38, a fantastic verdict); selling land at a high
+  price postpones the end to the twenty-third year on average, and spending the
+  store on land still ends a reign after four or five years.
+- Nothing but the length changes: the marathon term lasts 100 years, and every
+  constant in `config.py` stays the vintage one, so every rate in the tables above
+  is the same rule measured again.
+- A marathon is therefore a survival run rather than a longer game: the classic
+  ten-year term is the game as the 1978 listing plays it, and the marathon is the
+  documented way to ask for the same rules over a century.
+
+
 ## How these notes stay honest
 
 - `tests/test_simulation.py` replays the careful batch and asserts the counts in
-  the first table, so a change to a rule or to the engine fails the suite until
-  this file is refreshed.
+  the first table, and replays the marathon batch for the century row, so a
+  change to a rule or to the engine fails the suite until this file is refreshed.
 - `tests/test_docs.py` checks every rule figure quoted above against the constant
   it documents, so a changed constant cannot leave a stale number behind here or
   in `plan.md` and `README.md`.
 - To re-measure everything: replay the batch as shown at the top of this file,
-  one policy at a time, and replace the tables above.
+  one policy at a time, and replace the tables above. A marathon batch is the
+  same loop with `term_years=config.MARATHON_TERM_YEARS`.

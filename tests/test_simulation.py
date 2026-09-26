@@ -12,8 +12,8 @@ must hold in *every* game:
 
 Everything is seeded, so the batches are reproducible: nothing here depends on
 luck. The outcomes of the same batches are written down in ``docs/balancing.md``,
-and ``test_the_balancing_notes_describe_the_careful_batch`` at the end of this
-module keeps that document and the engine in step.
+and the two ``test_the_balancing_notes_*`` tests at the end of this module keep
+that document and the engine in step, batch by batch.
 """
 
 from __future__ import annotations
@@ -350,12 +350,12 @@ def test_the_random_events_keep_the_documented_rates() -> None:
 BALANCING_NOTES = Path(__file__).resolve().parent.parent / "docs" / "balancing.md"
 
 
-def _documented_careful_row() -> list[int]:
-    """Return the figures in the ``| careful |`` row of the balancing notes."""
+def _documented_row(label: str) -> list[int]:
+    """Return the figures in the ``| label |`` row of the balancing notes."""
     for line in BALANCING_NOTES.read_text(encoding="utf-8").splitlines():
-        if line.startswith("| careful |"):
+        if line.startswith(f"| {label} |"):
             return [int(cell) for cell in line.strip("|").split("|")[1:]]
-    raise AssertionError(f"no '| careful |' row in {BALANCING_NOTES}")
+    raise AssertionError(f"no '| {label} |' row in {BALANCING_NOTES}")
 
 
 def test_the_balancing_notes_describe_the_careful_batch() -> None:
@@ -368,7 +368,7 @@ def test_the_balancing_notes_describe_the_careful_batch() -> None:
         completed += _finished(ui)
 
     games, documented_completed, documented_impeached, *documented_verdicts = (
-        _documented_careful_row()
+        _documented_row("careful")
     )
     assert games == GAMES, f"{BALANCING_NOTES} quotes {games} games, not {GAMES}"
     assert documented_completed == completed
@@ -383,3 +383,52 @@ def test_the_balancing_notes_describe_the_careful_batch() -> None:
     assert documented == dict(verdicts), (
         f"{BALANCING_NOTES} quotes other verdict counts: {documented} != {verdicts}"
     )
+
+
+def test_the_balancing_notes_describe_the_marathon_batch() -> None:
+    """The marathon row of ``docs/balancing.md`` is this engine's own result."""
+    verdicts: Counter[Verdict] = Counter()
+    completed = 0
+    for seed in range(GAMES):
+        game, ui = play_game(seed, CarefulPolicy, term_years=config.MARATHON_TERM_YEARS)
+        verdicts[game.state.verdict] += 1
+        completed += _finished(ui)
+
+    games, documented_completed, documented_impeached, *documented_verdicts = (
+        _documented_row("careful (marathon)")
+    )
+    assert games == GAMES, f"{BALANCING_NOTES} quotes {games} games, not {GAMES}"
+    assert documented_completed == completed
+    assert documented_impeached == GAMES - completed
+    documented = dict(
+        zip(
+            (Verdict.FANTASTIC, Verdict.MEDIOCRE, Verdict.TYRANT, Verdict.IMPEACHED),
+            documented_verdicts,
+            strict=True,
+        )
+    )
+    expected = {verdict: verdicts[verdict] for verdict in documented}
+    assert documented == expected, (
+        f"{BALANCING_NOTES} quotes other verdict counts: {documented} != {expected}"
+    )
+
+
+@pytest.mark.parametrize("policy", POLICIES, ids=IDS)
+def test_a_marathon_term_never_runs_past_its_last_year(policy: type[Policy]) -> None:
+    """The term in the state bounds the loop, whatever its length."""
+    for seed in range(25):
+        game, ui = play_game(seed, policy, term_years=config.MARATHON_TERM_YEARS)
+
+        assert 1 <= game.state.year <= config.MARATHON_TERM_YEARS
+        if _finished(ui):
+            assert game.state.year == config.MARATHON_TERM_YEARS
+            assert game.state.verdict is rules.evaluate_verdict(
+                game.state.starved_percent_avg, game.state.acres_per_person
+            )
+        else:
+            # A ruler who starves more than 45% in a single year is deposed on
+            # the spot: the statistics of the whole term are never consulted.
+            assert game.state.verdict is Verdict.IMPEACHED
+            assert rules.is_impeached(
+                game.state.population, game.state.starved_this_year
+            )

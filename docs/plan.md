@@ -10,17 +10,19 @@ management game **Hammurabi** (also known as **Sumeria**). The original was
 written by Doug Dyment in 1968 in FOCAL and popularised through David H. Ahl's
 *101 BASIC Computer Games* (1978).
 
-The player rules the ancient city-state of Sumeria for **ten years**, deciding
-each year how much land to buy or sell, how much grain to feed the people and
-how many acres to plant, while random events (harvests, rats, immigration and
-plague) shape the outcome.
+The player rules the ancient city-state of Sumeria for a **ten-year term**, or
+for a whole century in the **marathon** rule set, deciding each year how much
+land to buy or sell, how much grain to feed the people and how many acres to
+plant, while random events (harvests, rats, immigration and plague) shape the
+outcome.
 
 The target is a faithful, cleanly structured and fully tested Python
 implementation that is still fun to play in a terminal.
 
 ## 2. Goals
 
-- Reproduce the classic rules and the ten-year term with high fidelity.
+- Reproduce the classic rules and the ten-year term with high fidelity, and keep
+  the length of the term a documented choice rather than a hard-coded one.
 - Keep the game engine free of terminal I/O so it can be unit tested and
   simulated headlessly.
 - Make runs deterministic and reproducible by injecting a seedable RNG.
@@ -47,12 +49,21 @@ Derived from the 1978 BASIC listing
 | Grain in store | 2800 bushels |
 | Land owned | 1000 acres |
 | Term | 10 years |
+| Marathon term | 100 years |
 | Immigrants in year 1 | 5 |
 | Rats ate in year 1 | 200 bushels |
 | Harvest yield in year 1 | 3 bushels per acre |
 
 After the first immigration the population reaches 100, which is why many
 descriptions simply quote "100 people".
+
+The classic rule set is the ten-year term. The **marathon** plays exactly the
+same rules over 100 years: nothing but the length of the term changes, so a
+marathon run is the vintage game stretched to a century, and
+[`balancing.md`](./balancing.md) records what that measures — the city grows
+faster than the store can feed it, so the vast majority of marathon reigns end in
+an impeachment long before the hundredth year. `hammurabi --years N` plays any
+term from 1 to 1000 years; the classic ten is the default and 100 the marathon.
 
 ### Turn sequence
 
@@ -133,10 +144,11 @@ Each milestone is independently testable and ends with `progress.md` updated.
 | --- | --- | --- |
 | M0 | Scaffolding & documentation | Project skeleton, `docs/`, agent instructions, runnable entry point |
 | M1 | Domain model & rules | `config.py`, `models.py`, `rules.py` — pure, fully unit tested |
-| M2 | Game engine | `game.py` — the ten-year loop, wired to injected RNG and UI |
+| M2 | Game engine | `game.py` — the yearly loop, wired to injected RNG and UI |
 | M3 | Terminal UI | `ui.py` — `rich` based report, prompts and validation messages |
 | M4 | CLI options & release packaging | `--seed`/`--version` options, `README.md` polish, release metadata in `pyproject.toml` (non-commercial licence, single-sourced version) |
 | M5 | Hardening & polish | Property/simulation tests, docs cross-check, balancing notes |
+| M6 | Term as a documented rule | The marathon rule set and `--years`; the term travels in `GameState`; balancing notes for the century |
 
 ### Stretch ideas (after v1.0)
 
@@ -154,6 +166,19 @@ to play a complete, faithful ten-year game in the terminal:
 - the test suite passes and covers every rule and the end-of-game verdicts;
 - `docs/` describes the project accurately and `progress.md` reports v1.0
   complete.
+
+### Target outcome for v1.1 (the marathon)
+
+`1.1.0` keeps the v1.0 game as its default and adds the second rule set of §4:
+
+- `hammurabi --years N` selects the length of the term; `10` (the classic game)
+  is the default and `100` is the marathon;
+- the term lives in `GameState.term_years`, so the engine and the UI never read
+  a global and a marathon transcript reports its own length;
+- the suite covers the marathon (a hundred-year term played end to end, the
+  closing report at the last year, the option's bounds) and keeps
+  `docs/balancing.md` honest with a measured marathon batch;
+- `docs/` and `README.md` document both terms and what the marathon measures.
 
 ## 7. Tech stack
 

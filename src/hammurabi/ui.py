@@ -93,10 +93,10 @@ def _verdict_lines(state: GameState, verdict: Verdict) -> list[str]:
 
 
 def _term_statistics(state: GameState) -> str:
-    """Return the ten-year statistics that open the closing report (860-875)."""
+    """Return the term statistics that open the closing report (860-875)."""
     started = config.START_ACRES / config.START_POPULATION
     return (
-        f"In your {config.TERM_YEARS}-year term of office, "
+        f"In your {state.term_years}-year term of office, "
         f"{state.starved_percent_avg:.1f} percent of the population starved per "
         f"year on the average, i.e. a total of {state.total_starved} people "
         f"died!!\nYou started with {started:.1f} acres per person and ended with "
@@ -136,7 +136,7 @@ class ConsoleUI:
             Panel(
                 f"[bold]{TITLE}[/bold]\n[dim]{SUBTITLE}[/dim]\n\n"
                 "Try your hand at governing ancient Sumeria successfully for a "
-                f"{config.TERM_YEARS}-year term of office.\n\n[dim]{CREDIT}[/dim]",
+                f"{state.term_years}-year term of office.\n\n[dim]{CREDIT}[/dim]",
                 border_style="green",
                 title="Hammurabi",
                 title_align="left",
@@ -193,7 +193,7 @@ class ConsoleUI:
         self._show_farewell()
 
     def show_summary(self, state: GameState, verdict: Verdict) -> None:
-        """Report the ten-year statistics and the final verdict."""
+        """Report the term statistics and the final verdict."""
         self.console.print()
         self.console.print(_term_statistics(state))
         # ``880 IF P1>33 THEN 565``: the end-of-term impeachment reuses the text

@@ -111,18 +111,25 @@ class StarverPolicy(Policy):
         return self._record("feed", 0, state)
 
 
-def play_game(seed: int, policy: type[Policy] = CarefulPolicy) -> tuple[Game, Policy]:
+def play_game(
+    seed: int,
+    policy: type[Policy] = CarefulPolicy,
+    *,
+    term_years: int = config.TERM_YEARS,
+) -> tuple[Game, Policy]:
     """Play one whole term with ``policy``, seeded with ``seed``.
 
     Args:
         seed: Seed for the game's random source.
         policy: The policy class to play the term with.
+        term_years: Length of the term in years, so that a batch can play the
+            marathon as well as the classic ten years.
 
     Returns:
         The finished game and the policy, so that a test can read the verdict,
         the final state and the recorded answers.
     """
     ui = policy()
-    game = Game(SeededRandom(seed=seed), ui)
+    game = Game(SeededRandom(seed=seed), ui, state=GameState(term_years=term_years))
     game.play()
     return game, ui

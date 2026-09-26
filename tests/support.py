@@ -144,7 +144,7 @@ class CarefulUI(FakeUI):
     """A player who trades no land, feeds everyone and sows all they can.
 
     It is rule-aware on purpose: the engine tests use it to play whole games
-    without scripting ten years of answers by hand.
+    without scripting a term of answers by hand.
     """
 
     def ask_bushels_to_feed(self, state: GameState) -> int:

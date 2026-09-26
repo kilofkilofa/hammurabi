@@ -15,11 +15,13 @@ Last updated: 2026-09-26
 | M3 — Terminal UI | **Done** | `ui.py`: rich intro, yearly report, status table, four bounded questions, verdict panels; 139 tests in total, 19 of them UI tests |
 | M4 — CLI options & release packaging | **Done** | `--seed`/`--version`, single-sourced version, non-commercial licence (PolyForm 1.0.0 + `LICENSE`), README (options, how to play, verdicts, development), classifiers and dev extra; `tests/test_packaging.py` |
 | M5 — Hardening & polish | **Done** | Bounded input retries and a per-test watchdog; seeded simulation batches (`tests/policies.py`, `tests/test_simulation.py`); a docs cross-check (`tests/test_docs.py`); measured `docs/balancing.md`; every doc claim corrected against the code; released as `1.0.0` |
+| M6 — Term as a documented rule | **Done** | The classic ten years stay the default, `--years N` (1-1000) selects the term and `--years 100` plays the documented **marathon** rule set; the term travels in `GameState.term_years`, so the engine and the UI never read a global; marathon tests in `test_game.py`, `test_ui.py`, `test_main.py`, `test_simulation.py`; the measured century in `docs/balancing.md`; released as `1.1.0` |
 
-Overall: **M0–M5 complete — `1.0.0`.** The rules layer, the ten-year engine, the
-`rich` terminal UI, the release metadata and the hardening are all in place:
-`hammurabi`, `python -m hammurabi` and `python main.py` play a real game, seeded
-batches of 500 games per policy guard the rules, and `docs/plan.md`,
+Overall: **M0–M6 complete — `1.1.0`.** The rules layer, the yearly engine, the
+`rich` terminal UI, the release metadata, the hardening and the two documented
+term lengths are all in place: `hammurabi`, `python -m hammurabi` and
+`python main.py` play a real game (add `--years 100` for the marathon), seeded
+batches of 500 games per policy guard the rules in both terms, and `docs/plan.md`,
 `README.md` and `docs/balancing.md` are checked against the code by the suite.
 
 ## Done
@@ -142,6 +144,27 @@ batches of 500 games per policy guard the rules, and `docs/plan.md`,
 - **Run instructions** — the README's *Quick start* became *Run the game*: three
   numbered steps (clone, install in a virtual environment, run `hammurabi`), the
   two alternative entry points, the options and what the first screen asks for.
+- **M6** — the term became a documented rule instead of a constant: `config.py`
+  holds the classic `TERM_YEARS` (10, the default) and the marathon
+  `MARATHON_TERM_YEARS` (100), `GameState.term_years` carries whichever is being
+  played, and `game.py`/`ui.py` read it from the state, so the engine and the
+  console UI never consult a global — the banner and the closing report of a
+  marathon both say "100-year".
+- **M6** — `main.py` gained `--years N` (default 10, bounds 1-`MAX_TERM_YEARS`
+  checked before the engine is built, exit code 2 with a message that names both
+  rule sets), so `hammurabi --years 100` plays the marathon.
+- **M6** — tests for both terms: the marathon played end to end with a seeded
+  policy and through the real console UI (seed 38, the one careful game of the
+  measured 500 that survives the century), the closing report at the state's last
+  year, the CLI option, its bounds, and a marathon batch that keeps
+  `docs/balancing.md` honest.
+- **M6** — `docs/balancing.md` records what the marathon measures: the same
+  vintage rules over a century leave the careful ruler impeached in the eleventh
+  year on average and only 1 term of 500 completed, which is why the ten-year term
+  stays the default and the marathon is documented as a survival run.
+- **M6** — release: `hammurabi.__version__` is `1.1.0`; `plan.md` §4 documents the
+  second rule set, §6 its target outcome, `architecture.md` the state field and
+  the CLI option, and `README.md` both terms.
 
 ## In progress
 
@@ -194,6 +217,8 @@ batches of 500 games per policy guard the rules, and `docs/plan.md`,
 | 2026-09-26 | Cross-check the documents from the test suite (`tests/test_docs.py`) | Documentation drift is silent otherwise; comparing the quoted figures with the constants and the measured event rates turns "remember to update the docs" into a failing test |
 | 2026-09-26 | The agent never stages, commits, tags or pushes; version control is manual (`AGENTS.md` §2, §6, §7, §8) | The maintainer reviews and commits every change by hand: an automated commit or push publishes unreviewed work, and a push to a shared remote cannot be taken back the way a local edit can |
 | 2026-09-26 | Credit the original authors and the port author in `NOTICE`, `README.md` and the intro banner | The port follows a game from 1968/1978, so its provenance belongs where the game is played and in the release metadata; saying that the licence covers this repository only keeps the credit honest about what is *not* licensed, and PEP 639 lets `NOTICE` travel with the release through `license-files` |
+| 2026-09-26 | Make the term a documented rule with two rule sets: the classic ten years by default and the 100-year **marathon** behind `--years` | Asked for a hundred-year game; measuring it first showed the vintage starvation rule ends a careful reign around the eleventh year, so a hundred-year term is a survival run rather than a longer game. Keeping ten years as the default preserves the faithful port and its balance figures, while the marathon is one flag away and measured in `docs/balancing.md` |
+| 2026-09-26 | Carry the term in `GameState.term_years` and validate `--years` in `main.py` | The engine and the UI must not read a global: the state already travels through both, so the banner, the closing report and the loop bound all follow the game being played, and the CLI keeps the badly typed numbers (0, negatives, absurdly long terms) out of the engine |
 
 ## How to update this file
 

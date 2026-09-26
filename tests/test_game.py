@@ -1,4 +1,4 @@
-"""Tests for the ten-year engine in :mod:`hammurabi.game`.
+"""Tests for the game engine in :mod:`hammurabi.game`.
 
 The engine is driven by the shared test doubles from :mod:`tests.support`: a
 scripted random source and a recording UI, so no test needs a terminal or real
@@ -566,3 +566,64 @@ def test_play_year_raises_once_the_ten_year_term_is_over() -> None:
 
     with pytest.raises(RuntimeError):
         game.play_year()
+
+
+# --- The marathon term -------------------------------------------------------
+
+
+def test_a_marathon_term_is_scored_after_a_century_in_office() -> None:
+    # ``270 IF Z=11 THEN 860``: the closing report opens the year after the last
+    # one played, whatever length the term has. Seed 38 is the one careful game
+    # of the measured 500 that survives all hundred years; see ``balancing.md``.
+    ui = CarefulUI()
+    game = Game(
+        SeededRandom(seed=38),
+        ui,
+        state=GameState(term_years=config.MARATHON_TERM_YEARS),
+    )
+
+    verdict = game.play()
+
+    assert ui.names()[0] == "intro"
+    assert ui.names()[-1] == "summary"
+    assert game.state.year == config.MARATHON_TERM_YEARS
+    assert game.state.game_over is True
+    assert verdict is Verdict.FANTASTIC
+
+
+def test_the_closing_report_waits_for_the_whole_marathon() -> None:
+    # A state at the classic tenth year is only a tenth of the marathon, so the
+    # engine must not treat the term as over: the length comes from the state.
+    game = Game(
+        _endless_rng(),
+        CarefulUI(),
+        state=GameState(term_years=config.MARATHON_TERM_YEARS),
+    )
+
+    game.play_year()
+
+    assert game.state.year == 1
+    assert game.state.game_over is False
+
+
+def test_a_marathon_state_is_closed_at_its_hundredth_year() -> None:
+    # The closing report runs at the year the state names, not at the tenth.
+    ui = FakeUI()
+    game = Game(
+        StubRandom(),  # no draws left: the closing report must not roll anything
+        ui,
+        state=GameState(
+            year=config.MARATHON_TERM_YEARS,
+            term_years=config.MARATHON_TERM_YEARS,
+            population=50,
+            acres=500,
+            immigrants_this_year=7,
+        ),
+    )
+
+    verdict = game.play()
+
+    assert ui.names()[0] == "intro"  # the term had not been closed before
+    assert ("summary", config.MARATHON_TERM_YEARS, verdict) in ui.calls
+    assert game.state.population == 57
+    assert game.state.year == config.MARATHON_TERM_YEARS

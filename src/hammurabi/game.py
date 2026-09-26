@@ -1,4 +1,4 @@
-"""The ten-year game engine.
+"""The game engine.
 
 :class:`Game` owns a single :class:`~hammurabi.models.GameState` and runs the
 yearly loop described in ``docs/architecture.md`` section 5: it reports the
@@ -6,11 +6,11 @@ situation, settles the plague and the land trade, feeds the people, sows and
 harvests grain, lets the rats and the immigrants in, rolls the plague for the
 next year and finally tallies the hunger.
 
-The steps and their order follow the 1978 BASIC listing line by line, quirks
-included: the plague roll is drawn at the end of a year for the year that
-follows, so the first year is always plague-free; the population is only reduced
-at the very end of the year; and the term closes with the report the listing
-opens for its eleventh year before it scores the ruler.
+The steps and their order are implemented from the behaviour the 1978 BASIC
+listing documents, quirks included: the plague roll is drawn at the end of a year
+for the year that follows, so the first year is always plague-free; the
+population is only reduced at the very end of the year; and the term closes with
+the report the listing opens after its last year before it scores the ruler.
 
 The engine performs no I/O of its own. Everything the player sees or answers
 travels through an injected :class:`UI`, and all randomness comes from an
@@ -70,7 +70,7 @@ class UI(Protocol):
         """Report that the ruler was impeached and the game is over."""
 
     def show_summary(self, state: GameState, verdict: Verdict) -> None:
-        """Report the ten-year statistics and the final verdict."""
+        """Report the term statistics and the final verdict."""
 
 
 def _not_enough_grain(bushels: int) -> str:
@@ -90,7 +90,7 @@ def _plant_error(acres: int, state: GameState) -> str:
 
 
 class Game:
-    """Plays one ten-year term of Hammurabi.
+    """Plays one term of Hammurabi.
 
     Args:
         rng: Source of all randomness; inject a seeded source to reproduce a
@@ -98,7 +98,8 @@ class Game:
         ui: Surface used to report the situation and collect the player's
             decisions.
         state: Optional starting state, useful in tests; a fresh game starts
-            when it is omitted.
+            when it is omitted. Its ``term_years`` decides how long the term
+            lasts.
     """
 
     def __init__(
@@ -114,7 +115,7 @@ class Game:
     def play(self) -> Verdict | None:
         """Play the term to its end and return the final verdict.
 
-        Years are played until the tenth has been completed or the ruler is
+        Years are played until the term has been completed or the ruler is
         impeached. The outcome is also left in ``state.verdict``, so calling
         ``play`` again on a finished game changes nothing.
 
@@ -123,7 +124,7 @@ class Game:
         """
         if not self.state.game_over:
             self.ui.show_intro(self.state)
-        while not self.state.game_over and self.state.year < config.TERM_YEARS:
+        while not self.state.game_over and self.state.year < self.state.term_years:
             self.play_year()
         if not self.state.game_over:
             self._closing_report()
@@ -133,8 +134,8 @@ class Game:
     def play_year(self) -> None:
         """Play exactly one year of the term.
 
-        The steps follow the original listing line by line: open the year with
-        its report, trade land, feed the people, sow and harvest, let the rats
+        The steps follow the order the original listing documents: open the year
+        with its report, trade land, feed the people, sow and harvest, let the rats
         and the immigrants in, roll the plague for the year to come and finally
         tally the hunger.
 
@@ -145,7 +146,7 @@ class Game:
         Raises:
             RuntimeError: If the term is over or the ruler was impeached.
         """
-        if self.state.game_over or self.state.year >= config.TERM_YEARS:
+        if self.state.game_over or self.state.year >= self.state.term_years:
             raise RuntimeError("cannot play another year: the term is over")
 
         self._open_year()
@@ -363,12 +364,12 @@ class Game:
         self.ui.show_impeachment(self.state)
 
     def _closing_report(self) -> None:
-        """Apply the report the listing opens after the tenth year.
+        """Apply the report the listing opens after the last year of the term.
 
         ``270 IF Z=11 THEN 860`` sends the listing back to the top of its loop
         once the term is over, so it reports an eleventh year before it scores
         the ruler: the last immigration joins the city (``218 P=P+I``) and the
-        plague roll made at the end of year ten is resolved (``227``). Both
+        plague roll made at the end of the term is resolved (``227``). Both
         change the acres per person the verdict is built on, so both are applied
         here. The phantom report itself is not drawn - only a plague gets its
         classic message, because it changes the figures the player is about to
@@ -383,7 +384,7 @@ class Game:
             self.ui.show_plague(before=before, after=state.population)
 
     def _evaluate_term(self) -> None:
-        """Score the completed ten-year term and end the game.
+        """Score the completed term and end the game.
 
         The mediocre verdict names how many people would like to see the ruler
         assassinated (``INT(P * .8 * RND(1))``, listing line 965). The figure is

@@ -20,6 +20,8 @@ from tests.support import StubRandom
         ("START_BUSHELS", 2800),
         ("START_ACRES", 1000),
         ("TERM_YEARS", 10),
+        ("MARATHON_TERM_YEARS", 100),
+        ("MAX_TERM_YEARS", 1000),
         ("START_IMMIGRANTS", 5),
         ("START_RATS_ATE", 200),
         ("LAND_PRICE_MIN", 17),

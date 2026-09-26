@@ -200,7 +200,7 @@ def test_the_impeachment_declares_the_ruler_a_national_fink() -> None:
     assert "So long for now." in text
 
 
-def test_the_summary_reports_the_ten_year_statistics() -> None:
+def test_the_summary_reports_the_term_statistics() -> None:
     ui, buffer, _ = _ui("0")
     state = GameState(
         population=57,
@@ -212,7 +212,7 @@ def test_the_summary_reports_the_ten_year_statistics() -> None:
     ui.show_summary(state, Verdict.TYRANT)
 
     text = render(buffer)
-    assert "In your 10-year term of office, 12.5 percent" in text
+    assert f"In your {config.TERM_YEARS}-year term of office, 12.5 percent" in text
     assert "a total of 130 people died!!" in text
     assert "You started with 10.5 acres per person" in text
     assert "ended with 8.8 acres per person" in text
@@ -252,7 +252,7 @@ def test_an_end_of_term_impeachment_uses_the_fink_text() -> None:
     ui.show_summary(state, Verdict.IMPEACHED)
 
     text = render(buffer)
-    assert "In your 10-year term of office" in text
+    assert f"In your {config.TERM_YEARS}-year term of office" in text
     assert "declared national fink!!!!" in text
     assert "Nero and Ivan IV" not in text
 
@@ -275,7 +275,7 @@ def test_the_engine_complains_through_the_console_and_asks_again() -> None:
 
 
 def test_a_whole_game_can_be_played_through_the_console_ui() -> None:
-    # Seed 1 is one the scripted player governs for the full ten years, ending
+    # Seed 1 is one the scripted player governs for the full classic term, ending
     # on a fantastic verdict; the same game is replayed through ``main`` in
     # ``test_main``.
     console, buffer = plain_console()
@@ -291,5 +291,38 @@ def test_a_whole_game_can_be_played_through_the_console_ui() -> None:
     assert game.state.game_over is True
     assert game.state.year == config.TERM_YEARS
     assert text.count("I beg to report to you,") == config.TERM_YEARS
-    assert "In your 10-year term of office" in text
+    assert f"In your {config.TERM_YEARS}-year term of office" in text
+    assert "So long for now." in text
+
+
+# --- The marathon term -------------------------------------------------------
+
+
+def test_the_intro_announces_the_term_the_state_asks_for() -> None:
+    """The banner repeats the term being played, not the classic constant."""
+    ui, buffer, _ = _ui("0")
+
+    ui.show_intro(GameState(term_years=config.MARATHON_TERM_YEARS))
+
+    assert f"{config.MARATHON_TERM_YEARS}-year term of office" in render(buffer)
+
+
+def test_a_marathon_term_can_be_played_through_the_console_ui() -> None:
+    # Seed 38 is the one careful game of the measured 500 that survives the whole
+    # marathon; the classic whole-game test above plays seed 1 instead.
+    console, buffer = plain_console()
+    game = Game(
+        SeededRandom(seed=38),
+        ConsoleUI(console=console, read=careful_console_answers),
+        GameState(term_years=config.MARATHON_TERM_YEARS),
+    )
+
+    verdict = game.play()
+
+    text = render(buffer)
+    assert verdict is not None
+    assert game.state.game_over is True
+    assert game.state.year == config.MARATHON_TERM_YEARS
+    assert text.count("I beg to report to you,") == config.MARATHON_TERM_YEARS
+    assert f"In your {config.MARATHON_TERM_YEARS}-year term of office" in text
     assert "So long for now." in text

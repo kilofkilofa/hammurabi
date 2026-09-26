@@ -97,6 +97,13 @@ def test_the_specification_quotes_the_constants_it_defines() -> None:
     assert _number(PLAN, r"\| Land owned \| (\d+) acres") == config.START_ACRES
     assert _number(PLAN, r"\| Term \| (\d+) years") == config.TERM_YEARS
     assert (
+        _number(PLAN, r"\| Marathon term \| (\d+) years \|")
+        == config.MARATHON_TERM_YEARS
+    )
+    assert (
+        _number(PLAN, r"any\s+term from 1 to (\d+) years") == config.MAX_TERM_YEARS
+    )
+    assert (
         _number(PLAN, r"\| Immigrants in year 1 \| (\d+) \|")
         == config.START_IMMIGRANTS
     )
@@ -150,6 +157,10 @@ def test_the_readme_quotes_the_same_rules() -> None:
     assert _text_matches(README, r"Project status:\*\* v(\d+\.\d+\.\d+)") == [
         __version__
     ]
+    assert _number(README, r"the classic\s+(\d+)-year term") == config.TERM_YEARS
+    assert (
+        _number(README, r"a\s+(\d+)-year marathon") == config.MARATHON_TERM_YEARS
+    )
     assert _number(README, r"(\d+) bushels feed one person") == (
         config.BUSHELS_PER_PERSON
     )
@@ -190,6 +201,10 @@ def test_the_balancing_notes_quote_the_same_rules() -> None:
         (config.YIELD_MIN, config.YIELD_MAX)
     ]
     assert _number(BALANCING, r"the\s+term lasts (\d+) years") == config.TERM_YEARS
+    assert (
+        _number(BALANCING, r"the marathon term lasts (\d+) years")
+        == config.MARATHON_TERM_YEARS
+    )
     assert set(_text_matches(BALANCING, r"strikes on (\d+)% of the\s+draws")) == {
         str(round(_observed_plague_rate()))
     }

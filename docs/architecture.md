@@ -47,7 +47,7 @@ hammurabi/
 │       ├── models.py       # Verdict enum and the GameState dataclass
 │       ├── rules.py        # pure rule functions (no I/O)
 │       ├── random_source.py# the RNG seam: RandomSource protocol + SeededRandom
-│       ├── game.py         # Game engine, ten-year loop and the UI protocol
+│       ├── game.py         # Game engine, yearly loop and the UI protocol
 │       └── ui.py           # rich-based console UI
 └── tests/
     ├── __init__.py
@@ -68,12 +68,12 @@ hammurabi/
 | Module | Responsibility | Depends on |
 | --- | --- | --- |
 | `config.py` | Named constants for every tunable rule (start values, prices, thresholds, rates). No logic. | — |
-| `models.py` | `GameState` dataclass holding year, population, acres, bushels and running statistics; small enums such as `Verdict`. | `config` |
+| `models.py` | `GameState` dataclass holding the term length, the year, population, acres, bushels and the running statistics; small enums such as `Verdict`. | `config` |
 | `rules.py` | Pure functions: land price, harvest yield, rat loss, immigration, plague, people fed, starvation, impeachment, input validation and the final verdict. | `config`, `models`, `random_source` |
 | `random_source.py` | The RNG seam: a `RandomSource` protocol (`random`, `randint`) plus the `SeededRandom` implementation backed by `random.Random`. Tests inject a scripted stub. | — |
 | `game.py` | `Game` engine: owns a `GameState`, runs the yearly loop, applies rules, updates statistics, decides game over. Also defines the `UI` protocol that the engine consumes. | `config`, `models`, `rules` |
 | `ui.py` | `ConsoleUI`: renders reports via `rich`, asks the player for the yearly numbers, prints error, impeachment and end-of-term messages. Implements the `UI` protocol from `game.py`; the engine validates every answer, so no rule knowledge ends up here. | `rich`, `game`, `models` |
-| `main.py` | Entry point: parse args (e.g. `--seed`), construct RNG and UI, run `Game`. | `game`, `ui`, `random_source` |
+| `main.py` | Entry point: parse args (`--seed`, `--years`), construct the starting state, RNG and UI, run `Game`. | `game`, `models`, `ui`, `random_source` |
 | `__main__.py` | Allows `python -m hammurabi`. | `main` |
 
 The `UI` protocol lives in `game.py` rather than `ui.py` because the engine owns
@@ -89,6 +89,7 @@ without a terminal.
 @dataclass
 class GameState:
     year: int = 0                 # years elapsed (0 before the first report)
+    term_years: int = 10          # length of the term: the classic ten years
     population: int = 95
     acres: int = 1000
     bushels: int = 2800
@@ -125,11 +126,12 @@ harvest yield -> rats raid the pre-harvest store -> store += harvest - rats
 immigrants for the next report
 impeachment? (more than 45% starved) -> game over
 term over? -> the undrawn closing report adds the last immigrants and plague,
-then the ten years are scored
+then the term is scored
 ```
 
-`Game.play()` repeats this until the tenth year has been played or the ruler is
-impeached, then stores the outcome in `state.verdict` and hands it to the UI.
+`Game.play()` repeats this until the term named by `state.term_years` has been
+played or the ruler is impeached, then stores the outcome in `state.verdict` and
+hands it to the UI.
 
 Answers that break a rule are rejected through `UI.show_error` and asked for
 again: `can_buy_land`, `can_sell_land`, `can_feed_people` and `can_plant` decide,
@@ -152,7 +154,7 @@ lines the UI raises `RuntimeError` too.
 | Integration | A seeded game played to completion produces a stable verdict; a whole term played through the real console UI with a scripted player | `tests/test_game.py`, `tests/test_ui.py` |
 | Simulation | Seeded batches of whole games per policy: the cross-game invariants (grain never negative, population only rises through immigrants, a verdict is always reached, years never exceed the term) and the figures recorded in `docs/balancing.md` | `tests/test_simulation.py`, `tests/policies.py` |
 | Documentation | Every figure quoted in `docs/plan.md`, `README.md` and `docs/balancing.md` is compared with the constant it documents, so a rule change fails the build | `tests/test_docs.py` |
-| Smoke | `main()` plays a scripted game, stops cleanly when the input ends, forwards `--seed`; `python -m hammurabi` runs with a closed stdin | `tests/test_main.py` |
+| Smoke | `main()` plays a scripted game, stops cleanly when the input ends, forwards `--seed` and `--years`, refuses a term it cannot play; `python -m hammurabi` runs with a closed stdin | `tests/test_main.py` |
 | Packaging | The installed distribution matches `__version__`, the console script points at `hammurabi.main:main`, and `pyproject.toml` declares the release metadata with no literal version of its own | `tests/test_packaging.py` |
 
 Guidelines:
@@ -239,8 +241,9 @@ of leaving a stray process spinning a core.
   and reads that attribute, so the installed distribution, `hammurabi --version`
   and the package can never disagree; `tests/test_packaging.py` guards it.
 - Version policy: `0.x` while the target outcome in `plan.md` §6 was incomplete;
-  `1.0.0` marks that outcome being met (the end of M5). Any later change needs a
-  new patch or minor version, never an edit of an existing release.
+  `1.0.0` marks that outcome being met (the end of M5), and `1.1.0` adds the
+  documented term choice (M6). Any later change needs a new patch or minor
+  version, never an edit of an existing release.
 - Nothing built is committed: `.venv/`, `*.egg-info/`, `dist/` and `build/` are
   ignored and recreated by `pip install -e ".[dev]"`.
 
@@ -252,8 +255,11 @@ of leaving a stray process spinning a core.
   engine.
 - **New verdict or message:** add it to the verdict mapping in `rules.py` and
   render it in `ui.py`.
-- **Alternate rule sets:** introduce a `Rules`/`Settings` object with defaults
-  from `config.py` and pass it to `Game`.
+- **Alternate rule sets:** the term lengths are the first documented case — the
+  classic ten years and the marathon century live in `config.py` and travel in
+  `GameState.term_years`, so `Game` and `ConsoleUI` never read a global. A wider
+  rule set would go the same way: a `Settings` object with defaults from
+  `config.py`, passed into the state or the engine.
 
 ## 10. Glossary
 
@@ -263,5 +269,5 @@ of leaving a stray process spinning a core.
 | bushel | unit of grain; used for food, seed, land and taxes to the rats |
 | plague | 20% yearly event killing half the population; the first year is always safe |
 | impeachment | instant game over when more than 45% starve in one year |
-| verdict | final evaluation after ten years |
+| verdict | final evaluation after the term |
 

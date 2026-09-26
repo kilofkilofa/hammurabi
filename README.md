@@ -4,14 +4,15 @@ A faithful Python re-implementation of the classic text-based **Hammurabi**
 game (also known as *Sumeria*) — the resource-management game originally written
 in 1968 and popularised by David H. Ahl's *101 BASIC Computer Games* (1978).
 
-Govern the city-state of Sumeria for ten years: buy and sell land, feed your
-people and plant grain while harvests, rats, immigration and plague decide your
-fate.
+Govern the city-state of Sumeria for the classic 10-year term — or ask for a
+100-year marathon — buying and selling land, feeding your people and planting
+grain while harvests, rats, immigration and plague decide your fate.
 
-> **Project status:** v1.0.0 — the full target outcome of
-> [`docs/plan.md`](docs/plan.md) §6 is met. The rules layer, the ten-year engine,
-> the `rich` terminal UI, the release metadata and the M5 hardening (seeded
-> simulation tests, a docs cross-check and balancing notes) are all in place. See
+> **Project status:** v1.1.0 — the full target outcome of
+> [`docs/plan.md`](docs/plan.md) §6 is met, and M6 adds the second documented rule
+> set: the classic ten years stay the default while `--years 100` plays the
+> marathon, whose measured outcome is in
+> [`docs/balancing.md`](docs/balancing.md). See
 > [`docs/progress.md`](docs/progress.md).
 
 ## Requirements
@@ -59,6 +60,7 @@ Options:
 ```bash
 hammurabi --help      # usage and options
 hammurabi --seed 42   # replay a game: the same seed brings the same events
+hammurabi --years 100 # the marathon: the same rules for a century
 hammurabi --version   # print the version
 ```
 
@@ -69,10 +71,11 @@ runs out the game says goodbye and stops.
 
 ## How to play
 
-You govern Sumeria for ten years. Every year the game reports what happened and
-then asks four questions: how many acres to buy (or, if you buy none, to sell),
-how many bushels to feed the people and how many acres to sow with seed. Answer
-with whole numbers.
+You govern Sumeria for the term you asked for: the classic ten years by default,
+or a hundred in the marathon (`--years 100`). Every year the game reports what
+happened and then asks four questions: how many acres to buy (or, if you buy
+none, to sell), how many bushels to feed the people and how many acres to sow
+with seed. Answer with whole numbers.
 
 - 20 bushels feed one person for a year; anyone unfed starves.
 - 1 bushel of seed sows 2 acres, and one person can tend 10 acres.
@@ -81,9 +84,9 @@ with whole numbers.
   of the city in one year ends your reign at once.
 
 A line that is not a whole number, or an amount the rules cannot accept, is
-explained and asked for again. After ten years the game judges you on the average
-starvation rate and the acres per person you leave behind: an outstanding ruler
-earns a fantastic verdict, a careless one is impeached as a national fink.
+explained and asked for again. When the term ends the game judges you on the
+average starvation rate and the acres per person you leave behind: an outstanding
+ruler earns a fantastic verdict, a careless one is impeached as a national fink.
 
 ## Verdicts
 
@@ -120,7 +123,7 @@ nice -n 19 pytest -q      # single process, low priority, one run at a time
 ```
 
 The layout is described in [`docs/architecture.md`](docs/architecture.md): the
-rules are pure functions in `rules.py`, `game.py` runs the ten-year loop behind an
+rules are pure functions in `rules.py`, `game.py` runs the yearly loop behind an
 injected RNG and UI object, and only `ui.py` / `main.py` touch the terminal.
 
 ## Documentation

@@ -17,8 +17,11 @@ START_BUSHELS = 2800
 # Acres owned at the start of the term.
 START_ACRES = 1000
 
-# Number of years the player governs.
+# Number of years the player governs in the classic rule set (the default).
 TERM_YEARS = 10
+
+# The marathon rule set: the same rules, played for a whole century of office.
+MARATHON_TERM_YEARS = 100
 
 # Immigrants reported in the first year.
 START_IMMIGRANTS = 5
@@ -106,6 +109,10 @@ VERDICT_ACRES_MEDIOCRE = 10
 VERDICT_ASSASSIN_SHARE = 0.8
 
 # --- Input validation --------------------------------------------------------
+
+# Longest term ``--years`` accepts. The marathon is the intended large value;
+# the cap only stops a mistyped number from asking for an endless game.
+MAX_TERM_YEARS = 1000
 
 # How many rejected answers in a row the engine tolerates before it gives up.
 # A player may always think again, but a UI that can never produce a valid

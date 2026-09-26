@@ -14,7 +14,7 @@ import sys
 import pytest
 
 from hammurabi import __version__, config
-from hammurabi.main import EXIT_OK, main
+from hammurabi.main import EXIT_OK, EXIT_USAGE, main, parse_args
 from tests.support import careful_console_answers, plain_console, render
 
 
@@ -95,3 +95,36 @@ def test_python_dash_m_hammurabi_runs_with_a_closed_stdin() -> None:
     assert result.returncode == EXIT_OK
     assert "HAMURABI" in result.stdout
     assert "So long for now." in result.stdout
+
+
+def test_the_classic_term_is_the_default() -> None:
+    """Without ``--years`` the command plays the documented ten-year game."""
+    assert parse_args([]).years == config.TERM_YEARS
+
+
+def test_main_plays_a_term_of_the_requested_length() -> None:
+    # One year is cheap to play and shows the option reaching the engine.
+    text = _play("--seed", "1", "--years", "1")
+
+    assert "In your 1-year term of office" in text
+    assert text.count("I beg to report to you,") == 1
+
+
+def test_main_plays_the_marathon_term() -> None:
+    # Seed 38 is the one careful game of the measured 500 that survives the
+    # whole marathon and is still scored; see ``docs/balancing.md``.
+    text = _play("--seed", "38", "--years", str(config.MARATHON_TERM_YEARS))
+
+    assert f"In your {config.MARATHON_TERM_YEARS}-year term of office" in text
+    assert text.count("I beg to report to you,") == config.MARATHON_TERM_YEARS
+
+
+@pytest.mark.parametrize("years", ["0", "-1", str(config.MAX_TERM_YEARS + 1)])
+def test_main_refuses_a_term_it_cannot_play(
+    years: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        main(["--years", years])
+
+    assert exit_info.value.code == EXIT_USAGE
+    assert "--years must be between 1 and" in capsys.readouterr().err
