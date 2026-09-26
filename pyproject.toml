@@ -1,0 +1,72 @@
+[project]
+name = "hammurabi"
+# The version is declared once, in `hammurabi/__init__.py`, and read from there
+# by the build backend, so the release and `hammurabi --version` can never drift.
+dynamic = ["version"]
+description = "A faithful Python port of the classic 1978 BASIC game Hammurabi"
+readme = "README.md"
+# Free for non-commercial use only. PolyForm has no SPDX identifier of its own, so
+# the licence is referenced as a LicenseRef and the text ships in LICENSE.
+license = "LicenseRef-PolyForm-Noncommercial-1.0.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [
+    { name = "kilofkilofa", email = "kilofkilofa@interia.pl" },
+]
+keywords = [
+    "game",
+    "text-adventure",
+    "hammurabi",
+    "sumeria",
+    "basic",
+    "retro",
+    "terminal",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Games/Entertainment :: Simulation",
+]
+dependencies = [
+    "rich>=13.0.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+hammurabi = "hammurabi.main:main"
+
+[project.urls]
+Homepage = "https://github.com/kilofkilofa/hammurabi"
+Repository = "https://github.com/kilofkilofa/hammurabi"
+Issues = "https://github.com/kilofkilofa/hammurabi/issues"
+
+[build-system]
+# setuptools 77 is the first release that understands the PEP 639 licence fields
+# (`license` as an SPDX expression and `license-files`) used above.
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = {attr = "hammurabi.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+# Safety net for the development laptop: a single test may not run longer than
+# this, otherwise the traceback is dumped and the whole run is aborted. Without
+# it a hanging test would leave a process spinning a core until the machine
+# froze. The full suite finishes in well under a second.
+faulthandler_timeout = 20
+faulthandler_exit_on_timeout = true

@@ -1,0 +1,11 @@
+# Cline entry point
+# The authoritative instructions live in AGENTS.md — read it in full.
+
+Before doing anything on a new task:
+
+1. Read `AGENTS.md` (working rules for this repository).
+2. Read `docs/plan.md`, `docs/architecture.md` and `docs/progress.md`.
+3. Follow the Definition of Done in `AGENTS.md` §6 and keep `docs/progress.md`
+   up to date after every task.
+
+Do not duplicate the rules here; edit `AGENTS.md` instead.
