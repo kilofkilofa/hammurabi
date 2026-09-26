@@ -85,8 +85,14 @@ def test_the_licence_is_declared_and_shipped() -> None:
     # PolyForm has no SPDX identifier, so the licence travels as a LicenseRef and
     # the full text has to ship with the package.
     assert "PolyForm" in project["license"]
-    assert project["license-files"] == ["LICENSE"]
+    assert project["license-files"] == ["LICENSE", "NOTICE"]
     assert licence.startswith("# PolyForm Noncommercial License 1.0.0")
+    # The credit file names the authors of the original game and states that the
+    # licence covers this repository only, never their work.
+    notice = PYPROJECT.parent.joinpath("NOTICE").read_text(encoding="utf-8")
+    assert "Dyment" in notice and "Ahl" in notice
+    assert "kilofkilofa" in notice
+    assert "covers only" in notice
 
 
 def test_the_version_has_a_single_source() -> None:

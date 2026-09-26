@@ -20,20 +20,38 @@ fate.
 - `rich` at runtime, `pytest` for the tests (installed by the project metadata;
   see [Development](#development))
 
-## Quick start
+## Run the game
+
+Python 3.10 or newer is all you need; `pip` installs `rich` for you.
+
+**1. Get the project and enter its directory** — skip this if you already have a
+checkout:
+
+```bash
+git clone https://github.com/kilofkilofa/hammurabi.git
+cd hammurabi
+```
+
+**2. Create a virtual environment and install the game** — once per checkout:
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -e .
+```
+
+**3. Start playing:**
+
+```bash
 hammurabi
 ```
 
-Alternative entry points:
+That is the whole recipe: type `hammurabi` and the game starts. Any of these two
+commands runs the same game if you prefer:
 
 ```bash
-python -m hammurabi   # run as a module
-python main.py        # convenience launcher from the repository root
+python -m hammurabi   # run as a module, works without the console script
+python main.py        # launcher from the repository root
 ```
 
 Options:
@@ -43,6 +61,11 @@ hammurabi --help      # usage and options
 hammurabi --seed 42   # replay a game: the same seed brings the same events
 hammurabi --version   # print the version
 ```
+
+The game opens with a banner, reports each year and asks you for three whole
+numbers; type a number and press Enter. An answer the rules cannot accept is
+explained and asked for again, Ctrl-C abdicates at any time, and when the input
+runs out the game says goodbye and stops.
 
 ## How to play
 
@@ -73,6 +96,21 @@ you meet is the verdict you get:
 | **Mediocre** | at most 10% starved, at least 9 acres per person |
 | **Tyrant** | at most 33% starved, at least 7 acres per person |
 | **National fink** | anything worse — or more than 45% starved in a single year, which ends the reign at once |
+
+## Credits and provenance
+
+*The Sumer Game* was written by **Doug Dyment** in 1968 in FOCAL; **David H. Ahl**
+turned it into BASIC as **HAMURABI** for *101 BASIC Computer Games* (Creative
+Computing, Morristown, New Jersey, 1978). That listing is the reference for the
+rules implemented here.
+
+This repository is an independent Python re-implementation by **kilofkilofa**.
+The rules are re-implemented from the documented behaviour of the original
+rather than translated from its code, and the reports are this port's own
+wording; the title and the "Creative Computing" subtitle kept in the banner are
+a nod to the original. No copyright is claimed over the original game or its
+listings, which remain with their authors and carry no known free licence — see
+[`NOTICE`](NOTICE).
 
 ## Development
 
@@ -105,4 +143,7 @@ separate licence from the copyright holder. The full text is in
 [`LICENSE`](LICENSE).
 
 This is deliberately **not** an open-source licence: it restricts commercial use.
+The licence covers the code, documentation and tests of this repository only; it
+says nothing about the 1968 original or the 1978 BASIC listing, which have their
+own authors and no known free licence ([`NOTICE`](NOTICE)).
 

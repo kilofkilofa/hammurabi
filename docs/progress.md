@@ -134,6 +134,14 @@ batches of 500 games per policy guard the rules, and `docs/plan.md`,
 - **Working rules** — `AGENTS.md` §2, §6, §7 and §8 now state that the agent
   never stages, commits, tags or pushes: every change is left in the working
   tree for the maintainer to review, commit and push by hand.
+- **Attribution** — `NOTICE` names the authors of the original game (Dyment's
+  1968 FOCAL original, Ahl's 1978 BASIC listing) and states that the PolyForm
+  licence covers this repository's code, documentation and tests only; the
+  `README.md` gained a *Credits and provenance* section, the licence section
+  repeats the scope, and the intro banner now credits kilofkilofa.
+- **Run instructions** — the README's *Quick start* became *Run the game*: three
+  numbered steps (clone, install in a virtual environment, run `hammurabi`), the
+  two alternative entry points, the options and what the first screen asks for.
 
 ## In progress
 
@@ -185,6 +193,7 @@ batches of 500 games per policy guard the rules, and `docs/plan.md`,
 | 2026-09-26 | Correct every document claim that described the listing's intent rather than its behaviour | `plan.md`, `README.md` and `architecture.md` had claimed a 15% plague, no `P < C` tally skip and no eleventh report; a specification that disagrees with the code misleads more than it helps |
 | 2026-09-26 | Cross-check the documents from the test suite (`tests/test_docs.py`) | Documentation drift is silent otherwise; comparing the quoted figures with the constants and the measured event rates turns "remember to update the docs" into a failing test |
 | 2026-09-26 | The agent never stages, commits, tags or pushes; version control is manual (`AGENTS.md` §2, §6, §7, §8) | The maintainer reviews and commits every change by hand: an automated commit or push publishes unreviewed work, and a push to a shared remote cannot be taken back the way a local edit can |
+| 2026-09-26 | Credit the original authors and the port author in `NOTICE`, `README.md` and the intro banner | The port follows a game from 1968/1978, so its provenance belongs where the game is played and in the release metadata; saying that the licence covers this repository only keeps the credit honest about what is *not* licensed, and PEP 639 lets `NOTICE` travel with the release through `license-files` |
 
 ## How to update this file
 

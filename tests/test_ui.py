@@ -49,6 +49,16 @@ def test_the_intro_names_the_game_the_term_and_the_starting_position() -> None:
     assert "You begin with 95 people, 1000 acres and 2800 bushels of grain." in text
 
 
+def test_the_intro_credits_the_port_and_its_licence() -> None:
+    ui, buffer, _ = _ui("0")
+
+    ui.show_intro(GameState())
+
+    text = render(buffer)
+    assert "Python port by kilofkilofa" in text
+    assert "non-commercial" in text
+
+
 def test_the_report_opens_the_year_with_deaths_and_arrivals() -> None:
     ui, buffer, _ = _ui("0")
 

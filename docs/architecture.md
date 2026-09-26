@@ -27,8 +27,9 @@
 hammurabi/
 ├── AGENTS.md               # instructions for AI agents (single source of truth)
 ├── .clinerules             # thin Cline entry point pointing at AGENTS.md + docs/
-├── README.md               # short user-facing intro and quick start
+├── README.md               # short user-facing intro and how to run the game
 ├── LICENSE                 # PolyForm Noncommercial 1.0.0 (non-commercial use)
+├── NOTICE                  # credits, provenance and the scope of the licence
 ├── pyproject.toml          # project metadata, deps, entry point, pytest config
 ├── requirements.txt        # pinned/installed dependency snapshot
 ├── main.py                 # thin dev launcher -> hammurabi.main:main

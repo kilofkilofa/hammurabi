@@ -1,0 +1,31 @@
+Hammurabi — credits and provenance
+
+Original game
+-------------
+
+"Hammurabi" (also known as "Sumeria" or "The Sumer Game") was written by Doug
+Dyment in 1968 in FOCAL and was popularised, in BASIC and under the name
+HAMURABI, by David H. Ahl in *101 BASIC Computer Games* (Creative Computing,
+Morristown, New Jersey, 1978). The documented behaviour of the 1978 listing is
+the rules reference for this project; see docs/plan.md section 4.
+
+This repository
+---------------
+
+This repository is an independent Python re-implementation by kilofkilofa. It
+contains no code from the original listings: the rules are re-implemented from
+their documented behaviour rather than translated line by line, and the wording
+of the reports belongs to this port. The lines that do survive verbatim - the
+title HAMURABI and the "CREATIVE COMPUTING  MORRISTOWN, NEW JERSEY" subtitle in
+src/hammurabi/ui.py - are kept as a nod to the original and are a title and a
+short phrase, not a protected passage.
+
+The PolyForm Noncommercial License 1.0.0 in LICENSE covers only the code,
+documentation and tests of this repository, which are copyright (c) 2026
+kilofkilofa. No copyright is claimed over the original 1968 game, over the 1978
+BASIC listing or over the names "Hammurabi", "Sumeria" and "The Sumer Game":
+those remain with their respective authors. The original listings carry no known
+free licence, so nothing in this repository may be read as a licence to them.
+
+The historical names of the game and the kings of Sumeria are used to describe
+what this project is, with no claim of ownership.

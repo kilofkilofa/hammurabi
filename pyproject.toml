@@ -8,7 +8,9 @@ readme = "README.md"
 # Free for non-commercial use only. PolyForm has no SPDX identifier of its own, so
 # the licence is referenced as a LicenseRef and the text ships in LICENSE.
 license = "LicenseRef-PolyForm-Noncommercial-1.0.0"
-license-files = ["LICENSE"]
+# PEP 639 also allows further legally required notices here, so the credits that
+# explain the provenance of the original game travel with the release as well.
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.10"
 authors = [
     { name = "kilofkilofa", email = "kilofkilofa@interia.pl" },

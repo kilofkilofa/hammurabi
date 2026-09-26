@@ -32,6 +32,9 @@ TITLE = "HAMURABI"
 #: Subtitle printed under the title in the listing.
 SUBTITLE = "CREATIVE COMPUTING  MORRISTOWN, NEW JERSEY"
 
+#: Credit shown in the banner: the port's author and the scope of its licence.
+CREDIT = "Python port by kilofkilofa — free for non-commercial use"
+
 #: Panel title used for each verdict.
 VERDICT_TITLES: dict[Verdict, str] = {
     Verdict.IMPEACHED: "National fink",
@@ -133,7 +136,7 @@ class ConsoleUI:
             Panel(
                 f"[bold]{TITLE}[/bold]\n[dim]{SUBTITLE}[/dim]\n\n"
                 "Try your hand at governing ancient Sumeria successfully for a "
-                f"{config.TERM_YEARS}-year term of office.",
+                f"{config.TERM_YEARS}-year term of office.\n\n[dim]{CREDIT}[/dim]",
                 border_style="green",
                 title="Hammurabi",
                 title_align="left",
