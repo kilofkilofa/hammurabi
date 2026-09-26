@@ -8,10 +8,10 @@ Govern the city-state of Sumeria for ten years: buy and sell land, feed your
 people and plant grain while harvests, rats, immigration and plague decide your
 fate.
 
-> **Project status:** v0.1.0 is playable end to end and packaged — the rules
-> layer, the ten-year engine, the `rich` terminal UI and the release metadata are
-> in place. The next milestone (M5 in [`docs/plan.md`](docs/plan.md)) is
-> hardening: simulation tests, a docs cross-check and balancing notes. See
+> **Project status:** v1.0.0 — the full target outcome of
+> [`docs/plan.md`](docs/plan.md) §6 is met. The rules layer, the ten-year engine,
+> the `rich` terminal UI, the release metadata and the M5 hardening (seeded
+> simulation tests, a docs cross-check and balancing notes) are all in place. See
 > [`docs/progress.md`](docs/progress.md).
 
 ## Requirements
@@ -92,6 +92,7 @@ injected RNG and UI object, and only `ui.py` / `main.py` touch the terminal.
 | [docs/plan.md](docs/plan.md) | Assumptions, canonical rules and target outcome |
 | [docs/architecture.md](docs/architecture.md) | Structure, modules, conventions and workflow |
 | [docs/progress.md](docs/progress.md) | Current level of plan realisation |
+| [docs/balancing.md](docs/balancing.md) | What seeded batches of games actually do (rates, verdicts, balance figures) |
 | [AGENTS.md](AGENTS.md) | Working rules for AI agents contributing to the project |
 
 ## Licence

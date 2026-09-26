@@ -49,6 +49,7 @@ Derived from the 1978 BASIC listing
 | Term | 10 years |
 | Immigrants in year 1 | 5 |
 | Rats ate in year 1 | 200 bushels |
+| Harvest yield in year 1 | 3 bushels per acre |
 
 After the first immigration the population reaches 100, which is why many
 descriptions simply quote "100 people".
@@ -58,7 +59,11 @@ descriptions simply quote "100 people".
 1. **Report** — year, people starved last year, immigrants, plague, population,
    acres owned, harvest yield per acre, grain eaten by rats, grain in store. The
    immigrants announced in the report join the city as part of this step.
-2. **Plague** — 15% chance every year: half the population dies (rounded down).
+2. **Plague** — the plague roll `INT(10 * (2 * RND(1) - 0.3))`, drawn at the end
+   of the previous year, decides the plague: it strikes when the roll is not
+   positive, which happens for 20% of the years. Half the population then dies
+   (rounded down). Year 1 uses the listing's initial roll (`Q = 1`), so the
+   first year is always plague-free.
 3. **Land price** — a random value of 17–26 bushels per acre, rolled once per
    year and fixed for both buying and selling that year.
 4. **Buy or sell land** — buy with grain, sell for grain. The price is fixed for
@@ -74,7 +79,14 @@ descriptions simply quote "100 people".
    and population. They are announced in the next year's report, which is when
    they join the city.
 10. **Starvation check** — starving more than 45% of the population in a single
-    year means immediate impeachment and the end of the game.
+    year means immediate impeachment and the end of the game. A year in which
+    the ruler fed more grain than the people needed (`P < C`, listing line 550)
+    adds nothing to the running average, to the total of people starved or to
+    the population, and does not even count as a year without starvation.
+11. **Scoring** — the listing opens one further (undrawn) report before it judges
+    the ruler, so that report's immigration joins the city and the plague roll
+    made at the end of the tenth year is resolved before the verdict is derived
+    from the starvation average and the acres per person.
 
 An answer that breaks a rule is rejected and asked for again; after 100 rejected
 answers in a row the engine stops with an error instead of looping forever
@@ -102,14 +114,14 @@ figure, and the UI only renders it.
 
 ### Known differences from the 1978 listing
 
-The listing is the reference for behaviour, but a few details are deliberately
-cleaner here. Each one is a decision, not an oversight.
+The listing is the reference for behaviour, and its quirks are part of the game:
+the 20% plague roll, the plague-free first year, the skipped tally after
+overfeeding and the undrawn final report are all reproduced and written down in
+the turn sequence above. What differs is only the handling of input the listing
+cannot cope with. Each difference is a decision, not an oversight.
 
 | Listing behaviour | This implementation | Why |
 | --- | --- | --- |
-| `Q=INT(10*(2*RND(1)-.3))` yields roughly a 20% plague chance, and `Q=1` before the loop makes the first year plague-free | a documented 15% chance every year | 15% is the widely quoted figure; exempting year 1 is an artefact of the loop's initial state |
-| a year in which the people are fed more than they need skips the running starvation average (`P<C` jumps past the update) | every year counts, including years without starvation | the average should really be "percent starved per year" |
-| an eleventh report opens before the final evaluation, so it counts the pending immigration and plague roll towards acres per person | the term ends after the tenth year | the verdict should describe the ten years actually played |
 | a negative answer ends the game with "I cannot do what you wish" | the engine rejects it and asks again | the documented `can_*` helpers treat negatives as invalid |
 | the listing loops forever on an answer it cannot accept | after 100 rejected answers in a row the engine stops with an error | an unbounded loop spins a CPU core forever when no valid answer can ever be given |
 

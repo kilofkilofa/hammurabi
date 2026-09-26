@@ -35,6 +35,7 @@ hammurabi/
 ├── docs/
 │   ├── architecture.md     # this file: structure and how to work on the project
 │   ├── plan.md             # assumptions, rules and target outcome
+│   ├── balancing.md        # measured behaviour of seeded batches of games
 │   └── progress.md         # current level of plan realisation
 ├── src/
 │   └── hammurabi/
@@ -51,9 +52,12 @@ hammurabi/
     ├── __init__.py
     ├── support.py          # shared doubles: scripted RNG, recording UI,
     │                       # buffer-backed console and scripted player
+    ├── policies.py         # player policies for the simulation tests
     ├── test_rules.py       # unit tests for every rule
     ├── test_game.py        # unit and integration tests for the engine
     ├── test_ui.py          # rendering, prompts and stop behaviour of the UI
+    ├── test_simulation.py  # seeded batches: invariants and the balance figures
+    ├── test_docs.py        # every figure quoted in docs/ matches config.py
     ├── test_packaging.py   # release metadata and the single-sourced version
     └── test_main.py        # smoke tests for the entry point
 ```
@@ -119,6 +123,8 @@ plant seed (land, seed and labour checked)
 harvest yield -> rats raid the pre-harvest store -> store += harvest - rats
 immigrants for the next report
 impeachment? (more than 45% starved) -> game over
+term over? -> the undrawn closing report adds the last immigrants and plague,
+then the ten years are scored
 ```
 
 `Game.play()` repeats this until the tenth year has been played or the ruler is
@@ -143,6 +149,8 @@ lines the UI raises `RuntimeError` too.
 | Unit — engine | Year transitions with a fake RNG and a scripted UI; impeachment path | `tests/test_game.py` |
 | Unit — UI | Every report, table, prompt and closing panel rendered into a buffer; the answer loop that re-asks and gives up | `tests/test_ui.py` |
 | Integration | A seeded game played to completion produces a stable verdict; a whole term played through the real console UI with a scripted player | `tests/test_game.py`, `tests/test_ui.py` |
+| Simulation | Seeded batches of whole games per policy: the cross-game invariants (grain never negative, population only rises through immigrants, a verdict is always reached, years never exceed the term) and the figures recorded in `docs/balancing.md` | `tests/test_simulation.py`, `tests/policies.py` |
+| Documentation | Every figure quoted in `docs/plan.md`, `README.md` and `docs/balancing.md` is compared with the constant it documents, so a rule change fails the build | `tests/test_docs.py` |
 | Smoke | `main()` plays a scripted game, stops cleanly when the input ends, forwards `--seed`; `python -m hammurabi` runs with a closed stdin | `tests/test_main.py` |
 | Packaging | The installed distribution matches `__version__`, the console script points at `hammurabi.main:main`, and `pyproject.toml` declares the release metadata with no literal version of its own | `tests/test_packaging.py` |
 
@@ -160,6 +168,12 @@ Guidelines:
   `plain_console` (a buffer-backed console), `render` (collapses the wrapping a
   `rich` console adds) and `careful_console_answers` (a player that answers from
   the figures each question repeats).
+- Simulation tests live in `tests/test_simulation.py` and play seeded batches of
+  whole games through the policies in `tests/policies.py` (careful ruler, land
+  trader, land seller, serial starver). They assert the invariants that must hold
+  in every game and pin the batch figures recorded in `docs/balancing.md`. Keep
+  each batch in the low hundreds of games so the suite stays cheap, and never
+  assert on a single seed's outcome.
 
 ## 7. Coding conventions
 
@@ -223,8 +237,9 @@ of leaving a stray process spinning a core.
   `src/hammurabi/__init__.py`. `pyproject.toml` declares `dynamic = ["version"]`
   and reads that attribute, so the installed distribution, `hammurabi --version`
   and the package can never disagree; `tests/test_packaging.py` guards it.
-- Version policy: stay in `0.x` while the target outcome in `plan.md` §6 is
-  incomplete, and release `1.0.0` once it is met (the end of M5).
+- Version policy: `0.x` while the target outcome in `plan.md` §6 was incomplete;
+  `1.0.0` marks that outcome being met (the end of M5). Any later change needs a
+  new patch or minor version, never an edit of an existing release.
 - Nothing built is committed: `.venv/`, `*.egg-info/`, `dist/` and `build/` are
   ignored and recreated by `pip install -e ".[dev]"`.
 
@@ -245,7 +260,7 @@ of leaving a stray process spinning a core.
 | --- | --- |
 | acre | unit of land; buying/selling changes it |
 | bushel | unit of grain; used for food, seed, land and taxes to the rats |
-| plague | 15% yearly event killing half the population |
+| plague | 20% yearly event killing half the population; the first year is always safe |
 | impeachment | instant game over when more than 45% starve in one year |
 | verdict | final evaluation after ten years |
 

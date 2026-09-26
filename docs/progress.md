@@ -14,13 +14,13 @@ Last updated: 2026-09-26
 | M2 — Game engine | **Done** | `game.py` with the `UI` protocol; `tests/test_game.py` |
 | M3 — Terminal UI | **Done** | `ui.py`: rich intro, yearly report, status table, four bounded questions, verdict panels; 139 tests in total, 19 of them UI tests |
 | M4 — CLI options & release packaging | **Done** | `--seed`/`--version`, single-sourced version, non-commercial licence (PolyForm 1.0.0 + `LICENSE`), README (options, how to play, verdicts, development), classifiers and dev extra; `tests/test_packaging.py` |
-| M5 — Hardening & polish | In progress | Test-run resource safety done (bounded retries, per-test watchdog); simulation/property tests outstanding |
+| M5 — Hardening & polish | **Done** | Bounded input retries and a per-test watchdog; seeded simulation batches (`tests/policies.py`, `tests/test_simulation.py`); a docs cross-check (`tests/test_docs.py`); measured `docs/balancing.md`; every doc claim corrected against the code; released as `1.0.0` |
 
-Overall: **M0–M4 complete — the rules layer, the ten-year engine, the `rich`
-terminal UI and the release metadata are implemented and tested, and `hammurabi`,
-`python -m hammurabi` and `python main.py` all play a real game. M5 is partly
-done: the test suite can no longer hang or saturate the development laptop, while
-the simulation tests and the docs cross-check are still to come.**
+Overall: **M0–M5 complete — `1.0.0`.** The rules layer, the ten-year engine, the
+`rich` terminal UI, the release metadata and the hardening are all in place:
+`hammurabi`, `python -m hammurabi` and `python main.py` play a real game, seeded
+batches of 500 games per policy guard the rules, and `docs/plan.md`,
+`README.md` and `docs/balancing.md` are checked against the code by the suite.
 
 ## Done
 
@@ -107,6 +107,30 @@ the simulation tests and the docs cross-check are still to come.**
 - **M5 (partial)** — documented the low-priority, single-process test recipe
   (`nice -n 19`, `taskpolicy -b`) and the "one session at a time / no stray
   processes" rules in `AGENTS.md` §7 and §9.1 and `docs/architecture.md` §8.
+- **M5** — seeded simulation batches: `tests/policies.py` (four rule-aware
+  policies — careful, land trader, land seller and starver — plus `play_game`)
+  and `tests/test_simulation.py`, which plays 500 games per policy and asserts
+  the grain balance, the population arithmetic, the resource invariants, the
+  verdict of every term, the documented event rates, reproducibility, and that a
+  batch of this size reaches all four verdicts.
+- **M5** — `tests/test_docs.py`: every rule figure quoted in `docs/plan.md`,
+  `README.md` and `docs/balancing.md` is compared with the constant or the
+  measured event rate it documents, so a changed constant fails the suite until
+  the prose follows.
+- **M5** — `docs/balancing.md`: what the seeded batches actually do — reign
+  length, verdict distribution, per-year event rates and final state for each
+  policy, plus which of the two verdict metrics decided every completed term. The
+  careful row is asserted by `tests/test_simulation.py`, so the document cannot
+  drift from the engine.
+- **M5** — every documentation claim corrected against the code: the plague step
+  now records the real 20% roll with a plague-free first year, the starvation
+  step documents the `P < C` tally skip, a new step 11 documents the undrawn
+  closing report, the "known differences" table keeps only the negative-input
+  difference, the year-1 figures are in the initial-state table, and
+  `architecture.md` lists the new modules and the closing report in its turn
+  sequence.
+- **M5** — release: `hammurabi.__version__` is `1.0.0`, the target outcome in
+  `plan.md` §6 is met, and `README.md` reports the release.
 
 ## In progress
 
@@ -114,19 +138,15 @@ the simulation tests and the docs cross-check are still to come.**
   yet, and a placeholder URL belongs in no release. For the same reason the
   copyright holder in `LICENSE` is the neutral "Hammurabi contributors" until the
   maintainer puts their own name there.
-- **M5** — test-run resource safety is complete; property and simulation tests,
-  the docs cross-check and the balancing notes are still to come.
 
 ## Next steps
 
 1. **M4** — add `[project.urls]` once the project has a public repository, and
    name the copyright holder in `LICENSE`.
-2. **M5** — property and simulation tests (for example seeded batches of games
-   asserting the rule invariants: grain never negative, population never rising
-   without immigrants, verdict always one of the four).
-3. **M5** — cross-check `docs/` against the code and record the balancing notes.
-4. **M5** — when the target outcome in `plan.md` §6 is met, bump `__version__` to
-   `1.0.0` and report the release complete.
+2. Keep the documents and the engine in step: `tests/test_docs.py` and
+   `tests/test_simulation.py` fail whenever a constant moves and the prose or
+   `docs/balancing.md` does not follow, so a rule change is a documentation
+   change by construction.
 
 ## Decision log
 
@@ -141,7 +161,7 @@ the simulation tests and the docs cross-check are still to come.**
 | 2026-09-26 | The `UI` protocol lives in `game.py`, not in `ui.py` | The engine owns the interface it consumes, so `rich` never enters the domain layer and `ui.py` merely implements it |
 | 2026-09-26 | Land is bought or sold in a year, never both | Matches the listing (`330 IF Q=0 THEN 340`); the price is fixed for the year, so trading twice would be pointless |
 | 2026-09-26 | An invalid answer is rejected and asked again | The listing quits on a negative answer; re-asking is friendlier and keeps every rule check in the engine |
-| 2026-09-26 | Keep the documented 15% plague chance and the per-year starvation average | The listing's expression is nearer 20%, skips year 1 and skips years without starvation; those quirks are recorded in `plan.md` §4 instead of being copied |
+| 2026-09-26 | Copy the listing's behaviour rather than its comments: the plague roll is the 20% expression `Q = INT(10*(2*RND(1)-0.3))` with a plague-free year 1, and the starvation average skips the `P < C` years | The comment above listing line 541 says "15%" while the expression beside it strikes on 20% of the draws, and the replay of a term follows the code that runs; `plan.md` §4 records each quirk instead of hiding it |
 | 2026-09-26 | Record the development machine's resources in `AGENTS.md` §9 and cap CPU, GPU, memory, disk and token usage | Development runs on a laptop, not a build farm: full saturation would make it unusable, and heavy runs cost time and tokens without improving this small game |
 | 2026-09-26 | Bound every input-retry loop with `config.MAX_ANSWER_ATTEMPTS` | A UI that can never return a valid answer (a closed stdin or a scripted test double) made the engine loop forever, pegging a CPU core and freezing the development laptop |
 | 2026-09-26 | Abort a test that outlives `faulthandler_timeout` (20 s) | A hang must never leave a stray process burning CPU; the whole suite runs in about 0.2 s, so the bound only ever catches a genuine hang |
@@ -157,6 +177,10 @@ the simulation tests and the docs cross-check are still to come.**
 | 2026-09-26 | Licence: PolyForm Noncommercial 1.0.0 — free for non-commercial use | The maintainer asked for a licence that is free but not for commercial use; PolyForm's non-commercial licence is written for software and needs no custom wording, while Creative Commons itself advises against using its licences for code. It is source-available rather than open source, and `README.md` says so plainly |
 | 2026-09-26 | Declare the licence as `LicenseRef-PolyForm-Noncommercial-1.0.0` and ship the text through `license-files` (`setuptools>=77`) | PolyForm publishes no SPDX identifier, and PEP 639 wants an SPDX expression instead of free text; `setuptools>=77` is the first release implementing those fields |
 | 2026-09-26 | No `[project.urls]` yet | The project has no public repository, and a placeholder URL would be a false statement in the released metadata |
+| 2026-09-26 | Release `1.0.0` once `plan.md` §6 is met | The plan defines 1.0.0 as the complete target outcome, the milestone list ends with the M5 hardening, and the version is single-sourced, so one edit keeps the package, the distribution and `--version` together |
+| 2026-09-26 | Record balancing as *measured* figures in `docs/balancing.md` instead of tuning the constants | The port reproduces the vintage rules rather than re-balancing them, so the document says what the rules do; the careful batch is asserted by `tests/test_simulation.py`, which keeps the notes honest without a second implementation |
+| 2026-09-26 | Correct every document claim that described the listing's intent rather than its behaviour | `plan.md`, `README.md` and `architecture.md` had claimed a 15% plague, no `P < C` tally skip and no eleventh report; a specification that disagrees with the code misleads more than it helps |
+| 2026-09-26 | Cross-check the documents from the test suite (`tests/test_docs.py`) | Documentation drift is silent otherwise; comparing the quoted figures with the constants and the measured event rates turns "remember to update the docs" into a failing test |
 
 ## How to update this file
 
