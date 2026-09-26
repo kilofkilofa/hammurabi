@@ -131,6 +131,9 @@ batches of 500 games per policy guard the rules, and `docs/plan.md`,
   sequence.
 - **M5** — release: `hammurabi.__version__` is `1.0.0`, the target outcome in
   `plan.md` §6 is met, and `README.md` reports the release.
+- **Working rules** — `AGENTS.md` §2, §6, §7 and §8 now state that the agent
+  never stages, commits, tags or pushes: every change is left in the working
+  tree for the maintainer to review, commit and push by hand.
 
 ## In progress
 
@@ -181,6 +184,7 @@ batches of 500 games per policy guard the rules, and `docs/plan.md`,
 | 2026-09-26 | Record balancing as *measured* figures in `docs/balancing.md` instead of tuning the constants | The port reproduces the vintage rules rather than re-balancing them, so the document says what the rules do; the careful batch is asserted by `tests/test_simulation.py`, which keeps the notes honest without a second implementation |
 | 2026-09-26 | Correct every document claim that described the listing's intent rather than its behaviour | `plan.md`, `README.md` and `architecture.md` had claimed a 15% plague, no `P < C` tally skip and no eleventh report; a specification that disagrees with the code misleads more than it helps |
 | 2026-09-26 | Cross-check the documents from the test suite (`tests/test_docs.py`) | Documentation drift is silent otherwise; comparing the quoted figures with the constants and the measured event rates turns "remember to update the docs" into a failing test |
+| 2026-09-26 | The agent never stages, commits, tags or pushes; version control is manual (`AGENTS.md` §2, §6, §7, §8) | The maintainer reviews and commits every change by hand: an automated commit or push publishes unreviewed work, and a push to a shared remote cannot be taken back the way a local edit can |
 
 ## How to update this file
 

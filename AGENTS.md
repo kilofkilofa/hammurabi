@@ -23,6 +23,10 @@ deviating.
 - The game is a faithful Python port of the classic 1978 BASIC **Hammurabi**
   (a.k.a. *Sumeria*). Match the rules in `docs/plan.md` §4 exactly.
 - Prefer small, reviewable changes over large rewrites.
+- **Never commit, tag or push.** Version control is the maintainer's manual
+  step: leave every change uncommitted in the working tree and stop after the
+  checks in §6. Reading history (`git status`, `git diff`, `git log`) is fine;
+  `git add`, `git commit`, `git tag`, `git push` and history rewrites are not.
 - Ask before introducing a new third-party dependency; the only runtime
   dependency is `rich` and the only dev dependency is `pytest` unless the plan
   changes.
@@ -66,6 +70,8 @@ deviating.
 - [ ] `docs/progress.md` updated, plus `docs/plan.md` / `docs/architecture.md`
       when needed.
 - [ ] No new undocumented dependency, no unused code, no TODOs left behind.
+- [ ] Every change left uncommitted in the working tree for the maintainer to
+      review, commit and push (§2).
 - [ ] Commands stayed inside the machine budget in §9 (single-process tests, no
       background processes, no large artefacts left behind).
 
@@ -82,6 +88,9 @@ python -m hammurabi         # run the game (module form)
 python main.py              # run the game (root launcher)
 ```
 
+`git status`, `git diff` and `git log` are read-only and safe for inspection;
+the agent never stages, commits, tags or pushes — see §2.
+
 ## 8. Don'ts
 
 - Don't put gameplay logic in `ui.py` or `main.py`.
@@ -90,6 +99,8 @@ python main.py              # run the game (root launcher)
 - Don't hard-code rule numbers outside `config.py`.
 - Don't change the documented rules without updating `docs/plan.md` first.
 - Don't write non-English text in files or in the UI.
+- Don't stage, commit, tag or push — the maintainer owns the repository history
+  (§2).
 - Don't saturate the machine and don't burn tokens — see §9 for the measured
   budget and the rules that follow from it.
 
