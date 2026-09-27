@@ -19,13 +19,16 @@ Last updated: 2026-09-27
 | M7 — Agriculture rule set | **Done** | `--agriculture` puts the optional farming tech tree of `plan.md` §4 in play: `tech.py` (tree as pure data), `models.Agriculture` + `GameState.agriculture`/`unlocked`, the research step in the engine, the tree table in the UI, `tests/test_tech.py` and agriculture batches in `docs/balancing.md`; released as `1.2.0` |
 | M8 — A tree that takes a lifetime | **Done** | The tree grew to fifteen nodes in four branches and a capstone, every rung a figure the ruler sees (acres per bushel of seed, bushels per acre, acres per person, the rats' share); the prices climb by about half again a rung, so the measured plan buys the capstone in year 86 on the median and 190 of 500 marathons buy the whole tree; the arc is tabulated rung by rung in `docs/balancing.md` and pinned by `test_the_plan_of_the_tree_takes_a_lifetime`; released as `1.3.0` |
 
-Overall: **M0–M8 complete — `1.3.0`.** The rules layer, the yearly engine, the
-`rich` terminal UI, the release metadata, the hardening and the three documented
+| M9 — Health rule set | **Done** | `--health` puts the optional public-health tree of `plan.md` §4 in play: `health.py` (nineteen measures, four branches, the House of Life), the `Node`/`TechTree`/`Offer` machinery shared with `tech.py`, one research moment a year covering both trees, `models.Health` + `GameState.health`/`born_this_year`, the four rules with classic defaults (`plague_survivors`, `plague_roll` resistance, `people_fed`, `births`), the children in the report and the programme column in the table; `tests/test_health.py` plus the new cases across the suite, and the measured worth of the tree in `docs/balancing.md`; released as `1.4.0` |
+
+Overall: **M0–M9 complete — `1.4.0`.** The rules layer, the yearly engine, the
+`rich` terminal UI, the release metadata, the hardening and the four documented
 rule sets are all in place: `hammurabi`, `python -m hammurabi` and
-`python main.py` play a real game (add `--years 100` for the marathon and
-`--agriculture` for the fifteen-node farming tech tree), seeded batches of 500
-games per policy guard the rules in every rule set, and `docs/plan.md`, `README.md`
-and `docs/balancing.md` are checked against the code by the suite.
+`python main.py` play a real game (add `--years 100` for the marathon,
+`--agriculture` for the fifteen-node farming tech tree and `--health` for the
+nineteen public-health measures), seeded batches of 500 games per policy guard the
+rules in every rule set, and `docs/plan.md`, `README.md` and `docs/balancing.md`
+are checked against the code by the suite.
 
 ## Done
 
@@ -236,6 +239,53 @@ and `docs/balancing.md` are checked against the code by the suite.
 - **M8** — release: `hammurabi.__version__` is `1.3.0`; `plan.md` §4 carries the
   fifteen-node table and the lifetime rationale, §5 records M8, §6 its target outcome,
   `README.md` the deeper tree and `architecture.md` the ladder semantics.
+- **M9** — `health.py`: the optional public-health tree as pure data — nineteen
+  measures in four branches (water 3, healers 5, nursery 6, food 4) that meet in the
+  **House of Life**, each with its price, prerequisites and effect — and `healers`,
+  which folds the unlocked measures into `models.Health`. The prices climb by about a
+  third a rung from 100 to 22,000 bushels, 84,490 together: the modest programme of
+  the two, because it buys people rather than grain.
+- **M9** — `tech.py` refactored around the machinery both rule sets share: the
+  `Node` protocol, `TechTree` (with `node`, `available`, `can_research`, `offers`,
+  `mastered` and `size`), the `Offer` that carries the programme a node comes from,
+  `enabled_trees` (the one place that maps a rule-set flag to its tree) and `offers`,
+  which gathers the union. `TECH_TREE` is now `FARMING.nodes`; the helpers that
+  served only the farming tree are gone, and `tests/test_tech.py` reads the tree it
+  tests.
+- **M9** — the four rules, each with the classic value as its default:
+  `plague_survivors(P, survivor_percent=50)` (bit for bit the listing's `P // 2`),
+  `plague_roll(rng, resistance=0)` (one point shifts the offset by a tenth, which
+  really does take five years in a hundred out of the plague: the roll is whole, so
+  shifting the offset rather than the roll itself is the only way to get that step
+  and still leave the plague possible), `people_fed(bushels, bushels_per_person=20)`
+  and the new `births(P, fed=..., per_thousand=0)` (nobody is born in a year the city
+  could not feed itself).
+- **M9** — the engine: `_bear_children` works out the children the next report
+  announces, `_open_year` and the closing report add them with the immigrants, the
+  plague takes the share the public health reaches, `_feed_people` feeds at the rate
+  in force, and `_research` asks one question a year over the union of the trees in
+  play; the UI reports the children, names the dead of a milder plague, prints a
+  programme column when both trees offer something, and lists each programme's
+  mastery in the closing report.
+- **M9** — the suite: `tests/test_health.py` (24 tests: branches, chains, the
+  capstone, the ladder, offers, the fold and its rate semantics), the four rules in
+  `tests/test_rules.py`, the engine and the UI cases, the flag and the marathon in
+  `tests/test_main.py`, the health tables and figures in `tests/test_docs.py`, and the
+  batches in `tests/test_simulation.py` (`HealerPolicy`, `rate`, `_years(health=)`
+  and the two arcs).
+- **M9** — `docs/balancing.md` was measured rather than promised. The healer is
+  impeached in the seventh year on average and completes no century of 500; the
+  median reign buys three of the nineteen measures and the deepest one any game ever
+  reaches is the thirteenth; the splitter — the farmer offered both tables — buys
+  8.9 measures for every 4.8 rungs and finishes neither. The two arcs, the batch rows
+  and the eighth-year ceiling of a fully built tree are all replayed by
+  `tests/test_simulation.py`. This is the honest outcome of M9: the health tree does
+  not spread a programme over a lifetime, because a health-only reign does not last
+  one.
+- **M9** — release: `hammurabi.__version__` is `1.4.0`; `plan.md` §4 carries the
+  health table and its four rules, §5 records M9, §6 its target outcome,
+  `README.md` the new flag and `architecture.md` the shared machinery, the `Health`
+  value and the union research.
 
 ## In progress
 
@@ -250,9 +300,10 @@ and `docs/balancing.md` are checked against the code by the suite.
    name the copyright holder in `LICENSE`.
 2. Keep the documents and the engine in step: `tests/test_docs.py` and
    `tests/test_simulation.py` fail whenever a constant moves and the prose, the
-   `plan.md` §4 tree table or the arc in `docs/balancing.md` does not follow, so a
-   rule change is a documentation change by construction. Retuning the price ladder
-   means re-running the marathon batch and replacing the arc table with it.
+   `plan.md` §4 tree tables or the arcs in `docs/balancing.md` do not follow, so a
+   rule change is a documentation change by construction. Retuning either price
+   ladder means re-running that rule set's marathon batch and replacing its arc table
+   with the new one.
 3. **Known issue found during M7** — the bracketed hint of a question is dropped
    from the *drawn* question: `rich` reads `[you have 2800 bushels, land is 23
    bushels per acre]` as markup, so the console shows only "How many acres do you
@@ -310,6 +361,13 @@ and `docs/balancing.md` are checked against the code by the suite.
 | 2026-09-27 | Rates are absolute and the best unlocked rung wins, while the harvest bonuses add up | "3→4 acres per bushel" is a rate, not a bonus: taking the maximum replaces the difference arithmetic of the old deltas, so no two rungs can stack by accident and a retuned ladder cannot silently change what a deeper node means |
 | 2026-09-27 | The measuring farmer keeps a food reserve and researches only out of the surplus of the year | A ruler who empties the store for a cheaper plough starves, and that made the earlier batches chaotic — a hundred bushels of difference in a price moved the century survival rate fourfold; the reserve rule is what a competent player does and it makes the batches a smooth function of the ladder, which is what tuning needs |
 | 2026-09-27 | Release `1.3.0` | M8 changes the tree, its prices and the measured balance, so the minor version moves; the version stays single-sourced in `hammurabi.__version__` |
+| 2026-09-27 | Put the health tree in its own `health.py` and share the research machinery in `tech.py` | The two rule sets are played the same way — a ladder of nodes, one question a year, the store pays — so the machinery is one implementation (`Node`, `TechTree`, `Offer`, `enabled_trees`, `offers`), while the data, the rates and the fold stay with the rule set they belong to |
+| 2026-09-27 | One research moment a year for both programmes, not one each | A year holds one decision point, so `--agriculture --health` asks once and the offer covers both trees, every node labelled with the programme that made it. Two questions a year would double the pace of development and make each flag change the other's arithmetic |
+| 2026-09-27 | Give the water branch its resistance through the plague roll's *offset*, not through the roll | The roll is whole, so shifting it can only take the plague from 20 to 10, 5 and then 0 years in a hundred — the last of which would abolish a rule of the game. Shifting the offset before the roll is drawn gives the documented 20 -> 15 -> 10 -> 5, leaves the plague possible, and still costs no extra random draw |
+| 2026-09-27 | The births rule grants no children in a year the city could not feed itself | A nursery is not what a famine needs, and without the condition the rule would deepen exactly the famine the ruler is being judged for; it also keeps the nursery branch out of the years that are already lost |
+| 2026-09-27 | Price the health tree as the modest programme — 84,490 bushels against the farming tree's 263,500 | The ladder is what a short reign can actually climb: the first rungs must fit the opening years, and the healer batch shows the cheap measures bought while the deep ones stay out of reach. A ladder priced like the farming one would be unbuyable content rather than a hard programme |
+| 2026-09-27 | Record that the health tree cannot carry a reign instead of adding a harvest rule to make it carry one | Measured: a health-only ruler is impeached for famine after about seven years, and even a city handed the whole tree on the first day dies in the eighth year on the median — the harvest, not medicine, is what keeps a city alive. A fifth rule raising the harvest would have blurred the two rule sets into one bonus, so the tree stands with its four rules and `docs/balancing.md` states what it is worth |
+| 2026-09-27 | Release `1.4.0` | M9 adds a rule set, a module, a flag and engine behaviour, so the minor version moves; the version stays single-sourced in `hammurabi.__version__` |
 
 ## How to update this file
 

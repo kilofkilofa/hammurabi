@@ -3,7 +3,8 @@
 :class:`ConsoleUI` is the only component that reads the keyboard or draws on the
 terminal, and it implements the :class:`~hammurabi.game.UI` protocol the engine
 consumes: it renders the yearly reports of the 1978 listing and collects the
-ruler's four decisions.
+ruler's four decisions, plus the yearly research question when a rule set is in
+play.
 
 No rule lives here. The engine validates every answer and explains a rejection
 through :meth:`ConsoleUI.show_error`, so this module only has to turn the game
@@ -93,32 +94,58 @@ def _verdict_lines(state: GameState, verdict: Verdict) -> list[str]:
 
 
 def _researched_line(state: GameState) -> str | None:
-    """Return the line naming the researched technologies, when there are any.
+    """Return the lines naming the researched technologies, when there are any.
 
-    The classic game researches nothing, so its closing report gains no line; the
-    agriculture rule set lists what the ruler's farmers mastered, in tree order.
+    The classic game researches nothing, so its closing report gains no line; every
+    rule set in play lists what the ruler's people mastered, in tree order.
     """
-    if not state.unlocked:
-        return None
-    names = [item.name for item in tech.TECH_TREE if item.key in state.unlocked]
-    return f"Your farmers mastered: {', '.join(names)}."
+    lines = [
+        f"Your {tree.label} mastered: "
+        f"{', '.join(item.name for item in tree.mastered(state.unlocked))}."
+        for tree in tech.enabled_trees(state)
+        if tree.mastered(state.unlocked)
+    ]
+    return None if not lines else "\n".join(lines)
+
+
+#: What a node of each rule set is called in the intro panel, keyed by the tree key
+#: of :func:`hammurabi.tech.enabled_trees`.
+RULESET_SUBJECTS: dict[str, str] = {
+    "agriculture": "farming technologies",
+    "health": "public-health measures",
+}
 
 
 def _ruleset_note(state: GameState) -> str:
-    """Return the sentence announcing the rule set, for the intro panel.
+    """Return the sentence announcing the rule sets, for the intro panel.
 
-    The classic game needs no note, because it asks the four vintage questions;
-    the agriculture rule set adds a fifth and says so before the first year. The
-    size of the tree is read from :mod:`hammurabi.tech`, so the banner cannot fall
-    behind a deeper tree.
+    The classic game needs no note, because it asks the four vintage questions; each
+    rule set in play adds a fifth and says so before the first year. The size of a
+    tree is read from the tree itself, so the banner cannot fall behind a deeper one,
+    and when both rule sets are played the note says that the one question a year
+    covers both programmes.
     """
-    if not state.agriculture:
+    trees = tech.enabled_trees(state)
+    if not trees:
         return ""
+    if len(trees) == 1:
+        tree = trees[0]
+        return (
+            f"\n\nThis is the {tree.key} rule set: each year you may also pay for one "
+            f"of the {tree.size} {RULESET_SUBJECTS[tree.key]} out of the grain in "
+            "store. The later ones cost what many harvests leave over, so the whole "
+            "programme is the work of a lifetime."
+        )
+    named = " and ".join(tree.key for tree in trees)
+    sized = " and ".join(
+        f"the {tree.size} {RULESET_SUBJECTS[tree.key]}" for tree in trees
+    )
     return (
-        "\n\nThis is the agriculture rule set: each year you may also pay for "
-        f"one of the {len(tech.TECH_TREE)} farming technologies out of the grain "
-        "in store. The later ones cost what many harvests leave over, so the "
-        "whole programme is the work of a lifetime."
+        f"\n\nThis is the {named} rule set: each year you may also pay for one of "
+        f"{sized} out of the grain in store, because a year holds one research moment "
+        "however many programmes it serves. The later nodes cost what many harvests "
+        "leave over, so a whole programme is the work of a lifetime and mastering both "
+        "takes the longest reign of all."
     )
 
 
@@ -185,19 +212,36 @@ class ConsoleUI:
         )
 
     def show_report(self, state: GameState) -> None:
-        """Open the year: its number, last year's deaths and arrivals."""
+        """Open the year: its number, last year's deaths, births and arrivals.
+
+        The children are announced only when the health rule set is in play, because
+        the classic game has no birth rule and its transcript must not change.
+        """
         self.console.print()
         self.console.print("[bold]HAMURABI:  I beg to report to you,[/bold]")
+        born = f", {state.born_this_year} were born" if state.health else ""
         self.console.print(
             f"In year {state.year}, {state.starved_this_year} people starved, "
-            f"{state.immigrants_this_year} came to the city."
+            f"{state.immigrants_this_year} came to the city{born}."
         )
 
     def show_plague(self, *, before: int, after: int) -> None:
-        """Report that the plague halved the population."""
+        """Report a plague year and the people it claimed.
+
+        The listing's words ("Half the people died") are kept whenever the year killed
+        exactly half of the city, which is what the classic rule always does. The
+        public health of the health rule set spares more people, and there the message
+        names the dead instead of claiming a half that did not happen.
+        """
+        if after == before // 2:
+            self.console.print(
+                f"[red]A horrible plague struck! Half the people died.[/red] "
+                f"The population fell from {before} to {after}."
+            )
+            return
         self.console.print(
-            f"[red]A horrible plague struck! Half the people died.[/red] "
-            f"The population fell from {before} to {after}."
+            f"[red]A horrible plague struck! {before - after} of the {before} people "
+            f"died.[/red] The population fell from {before} to {after}."
         )
 
     def show_status(self, state: GameState) -> None:
@@ -216,8 +260,8 @@ class ConsoleUI:
         """Report the price fixed for this year's land trade."""
         self.console.print(f"Land is trading at {price} bushels per acre.")
 
-    def show_research(self, researched: tech.Tech) -> None:
-        """Report the farming technology the ruler has just paid for."""
+    def show_research(self, researched: tech.Node) -> None:
+        """Report the technology the ruler has just paid for."""
         self.console.print(
             f"Your scholars start work on the {researched.name} "
             f"({researched.effect}); it shows in the years to come."
@@ -280,35 +324,48 @@ class ConsoleUI:
         )
 
     def ask_research(
-        self, state: GameState, choices: Sequence[tech.Tech]
+        self, state: GameState, choices: Sequence[tech.Offer]
     ) -> str | None:
-        """Ask which farming technology to research this year.
+        """Ask which technology to research this year.
 
-        The nodes on offer are drawn as a numbered table, because their names
-        alone would hide what they cost and what they do. Answering ``0`` starts
-        no research and leaves the grain in store. A number outside the table is
-        handed back as text, so the engine rejects it and asks again, exactly as it
-        does for a sowing that breaks a rule.
+        The nodes on offer are drawn as a numbered table, because their names alone
+        would hide what they cost and what they do; when both rule sets are played the
+        table gains a column naming the programme each node belongs to, and the lines
+        above it count what each programme has mastered so far. Answering ``0`` starts
+        no research and leaves the grain in store. A number outside the table is handed
+        back as text, so the engine rejects it and asks again, exactly as it does for a
+        sowing that breaks a rule.
 
         Args:
-            state: State the question is asked in; only its grain is quoted.
-            choices: Nodes the store can pay for, in tree order.
+            state: State the question is asked in; its flags and grain are read.
+            choices: Nodes the store can pay for, in tree order, both programmes
+                together.
 
         Returns:
             The key of the chosen node, ``None`` for no research this year, or the
             typed digits when they name no node on the list.
         """
+        mixed = len({offer.programme for offer in choices}) > 1
         table = Table(show_header=True, box=None, padding=(0, 2))
         table.add_column("#", justify="right", style="bold")
+        if mixed:
+            table.add_column("Programme")
         table.add_column("Technology")
         table.add_column("Cost", justify="right")
         table.add_column("Effect")
-        for number, item in enumerate(choices, start=1):
-            table.add_row(str(number), item.name, f"{item.cost} bushels", item.effect)
-        self.console.print(
-            f"Your farmers have mastered {len(state.unlocked)} of "
-            f"{len(tech.TECH_TREE)} technologies."
-        )
+        for number, offer in enumerate(choices, start=1):
+            row = [str(number)]
+            if mixed:
+                row.append(offer.programme.capitalize())
+            row.extend(
+                [offer.node.name, f"{offer.node.cost} bushels", offer.node.effect]
+            )
+            table.add_row(*row)
+        for tree in tech.enabled_trees(state):
+            self.console.print(
+                f"Your {tree.label} have mastered "
+                f"{len(tree.mastered(state.unlocked))} of {tree.size} technologies."
+            )
         self.console.print(table)
         answer = self._ask_int(
             "Which technology do you wish to research? "
@@ -317,7 +374,7 @@ class ConsoleUI:
         if answer == 0:
             return None
         if 1 <= answer <= len(choices):
-            return choices[answer - 1].key
+            return choices[answer - 1].node.key
         return str(answer)
 
     # --- Internals -----------------------------------------------------------

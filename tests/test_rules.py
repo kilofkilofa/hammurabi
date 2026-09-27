@@ -50,6 +50,44 @@ from tests.support import StubRandom
             "TECH_RAT_DIVISOR",
             {"granaries": 2, "silos": 3, "vaults": 4, "almanac": 5},
         ),
+        ("PLAGUE_SURVIVOR_PERCENT", 50),
+        ("PLAGUE_RESISTANCE_OFFSET", 0.1),
+        (
+            "HEALTH_RESISTANCE",
+            {"wells": 1, "drained_streets": 2, "brick_drains": 3},
+        ),
+        (
+            "HEALTH_SURVIVOR_PERCENT",
+            {
+                "herb_gatherers": 60,
+                "physicians": 70,
+                "doctors": 80,
+                "healing_houses": 85,
+                "temple_hospital": 90,
+                "house_of_life": 95,
+            },
+        ),
+        (
+            "HEALTH_BIRTHS_PER_THOUSAND",
+            {
+                "midwives": 4,
+                "wet_nurses": 8,
+                "milk_herds": 12,
+                "birthing_houses": 18,
+                "foundling_home": 25,
+                "palace_nursery": 34,
+                "house_of_life": 45,
+            },
+        ),
+        (
+            "HEALTH_BUSHELS_PER_PERSON",
+            {
+                "milled_grain": 19,
+                "kitchen_gardens": 18,
+                "oil_presses": 17,
+                "fish_ponds": 16,
+            },
+        ),
     ],
 )
 def test_config_matches_documented_rules(name: str, expected: object) -> None:
@@ -360,4 +398,83 @@ def test_can_plant_follows_the_technology_it_is_given() -> None:
         population=100,
         acres_per_worker=draft,
     )
+
+
+# --- The optional public health ----------------------------------------------
+#
+# The health rule set reaches the rules the same way the farming one does: keyword
+# arguments that default to the classic values. Two of the four rules of that rule
+# set add no argument at all — the plague's survivors and the feeding rate have one
+# — and the births are a rule the classic game does not have.
+
+
+def test_plague_survivors_are_the_classic_half_by_default() -> None:
+    """Every population, odd ones included, loses exactly half of itself."""
+    for population in range(0, 200):
+        assert rules.plague_survivors(population) == population // 2
+
+
+def test_plague_survivors_follow_the_share_they_are_given() -> None:
+    assert config.PLAGUE_SURVIVOR_PERCENT == 50
+    assert rules.plague_survivors(101, survivor_percent=60) == 60
+    assert rules.plague_survivors(100, survivor_percent=95) == 95
+    assert rules.plague_survivors(0, survivor_percent=95) == 0
+
+
+@pytest.mark.parametrize(
+    ("resistance", "strikes"), [(0, 20), (1, 15), (2, 10), (3, 5)]
+)
+def test_the_plague_roll_takes_five_years_in_a_hundred_per_point(
+    resistance: int, strikes: int
+) -> None:
+    """One point of resistance shifts the offset by a tenth of the plague band."""
+    rolls = [
+        rules.plague_roll(
+            StubRandom(randoms=[value / 100]), resistance=resistance
+        )
+        for value in range(100)
+    ]
+    assert sum(1 for roll in rolls if rules.plague_strikes(roll)) == strikes
+
+
+def test_the_plague_roll_is_the_vintage_one_without_resistance() -> None:
+    """A classic caller draws exactly the classic roll."""
+    for value in range(100):
+        stub = StubRandom(randoms=[value / 100])
+        classic = StubRandom(randoms=[value / 100])
+        assert rules.plague_roll(stub) == rules.plague_roll(classic, resistance=0)
+    assert rules.plague_roll(StubRandom(randoms=[0.0])) == -3
+    assert rules.plague_roll(StubRandom(randoms=[0.17])) == 0, "a classic plague year"
+    # The very same draw, one point of resistance later, is a safe year.
+    assert rules.plague_roll(StubRandom(randoms=[0.17]), resistance=1) == 1
+
+
+def test_people_fed_uses_the_rate_it_is_given() -> None:
+    ponds = config.HEALTH_BUSHELS_PER_PERSON["fish_ponds"]
+    assert rules.people_fed(2000, bushels_per_person=ponds) == 125
+    assert rules.people_fed(2000) == 100  # the classic twenty bushels
+
+
+def test_births_follow_the_rate_they_are_given() -> None:
+    rate = config.HEALTH_BIRTHS_PER_THOUSAND["midwives"]
+    assert rules.births(1000, fed=1000, per_thousand=rate) == rate
+    assert rules.births(250, fed=250, per_thousand=rate) == 1
+    assert rules.births(95, fed=95, per_thousand=rate) == 0, "and round down"
+
+
+def test_the_classic_game_has_no_births() -> None:
+    assert rules.births(1000, fed=1000) == 0
+    assert rules.births(1000, fed=1000, per_thousand=0) == 0
+
+
+def test_a_year_the_city_could_not_feed_brings_no_children() -> None:
+    """Hunger is no time for a nursery, however much grain was left over."""
+    rate = config.HEALTH_BIRTHS_PER_THOUSAND["house_of_life"]
+    assert rules.births(1000, fed=999, per_thousand=rate) == 0
+    assert rules.births(1000, fed=1000, per_thousand=rate) == 45
+    assert rules.births(1000, fed=2000, per_thousand=rate) == 45
+
+
+def test_births_without_population_is_zero() -> None:
+    assert rules.births(0, fed=0, per_thousand=45) == 0
 

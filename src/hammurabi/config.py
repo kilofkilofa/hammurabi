@@ -72,6 +72,18 @@ PLAGUE_ROLL_OFFSET = 0.3
 # ``Q=1`` (line 110), so the first year is always plague-free.
 START_PLAGUE_ROLL = 1
 
+# Shift in the roll's offset for each point of public-health resistance: one point
+# moves the offset by a tenth, which takes five years in a hundred out of the plague
+# band (``PLAGUE_ROLL_OFFSET``), so the water branch walks 20 -> 15 -> 10 -> 5 years
+# in a hundred and never abolishes the plague.
+PLAGUE_RESISTANCE_OFFSET = 0.1
+
+# Share of the people who live through a plague year, i.e. ``P // 2`` exactly. The
+# health rule set raises it through its healer branch; ``rules.plague_survivors``
+# reads this value as its default, which keeps the classic rule bit for bit because
+# ``P * 50 // 100`` is what the listing computes.
+PLAGUE_SURVIVOR_PERCENT = 50
+
 # --- Immigration -------------------------------------------------------------
 
 # Roll (1-5) that scales the number of newcomers.
@@ -188,5 +200,93 @@ TECH_RAT_DIVISOR: dict[str, int] = {
     "silos": 3,
     "vaults": 4,
     "almanac": 5,
+}
+
+# --- Health rule set (``--health``) ------------------------------------------
+
+# The second optional rule set of ``plan.md`` section 4: the public-health measures
+# of Sumeria, nineteen nodes the ruler pays for out of the grain in store and
+# researches with the same yearly question as the farming tree. Its nodes are
+# described in :mod:`hammurabi.health`; the classic game has no public health at all
+# and every value below is reachable only through that flag.
+#
+# The rates below follow the rule set's own arithmetic: the plague survivor share,
+# the plague resistance and the birth rate are *rates*, so the best unlocked value is
+# the one in force and no two rungs ever stack; the bushels that feed a person are
+# the one place where the smallest value wins, because there less is better.
+
+# Bushels of grain each node of the health tree costs to research, keyed by the node
+# key of :data:`hammurabi.health.HEALTH_TREE`. The ladder climbs by about a third a
+# step, like the farming one, but it is the modest programme of the two: the nineteen
+# measures cost 84,490 bushels together, where the fifteen farming technologies cost
+# 263,500, because what the health tree buys is people rather than grain. The measured
+# plan of ``docs/balancing.md`` therefore climbs most of it in a decade and reaches
+# the deepest rungs only in a century that farms as well.
+HEALTH_COSTS: dict[str, int] = {
+    "wells": 100,
+    "herb_gatherers": 140,
+    "midwives": 190,
+    "milled_grain": 250,
+    "drained_streets": 330,
+    "physicians": 450,
+    "wet_nurses": 610,
+    "kitchen_gardens": 820,
+    "brick_drains": 1100,
+    "doctors": 1500,
+    "milk_herds": 2000,
+    "oil_presses": 2700,
+    "healing_houses": 3700,
+    "birthing_houses": 4900,
+    "fish_ponds": 6700,
+    "temple_hospital": 9000,
+    "foundling_home": 12000,
+    "palace_nursery": 16000,
+    "house_of_life": 22000,
+}
+
+# Share of the population that lives through a plague year, keyed by the node that
+# reaches it. The classic game buries half the city; the deepest healer rung and the
+# House of Life save all but one in twenty, and no node goes further, because a
+# plague that never took anybody would not be a rule any more.
+HEALTH_SURVIVOR_PERCENT: dict[str, int] = {
+    "herb_gatherers": 60,
+    "physicians": 70,
+    "doctors": 80,
+    "healing_houses": 85,
+    "temple_hospital": 90,
+    "house_of_life": 95,
+}
+
+# Added to the plague roll, keyed by the node that reaches it: the classic plague
+# strikes in twenty years of a hundred, and each rung of the water branch takes five
+# of those years away — 20 -> 15 -> 10 -> 5. The deepest drains leave five years in a
+# hundred and no node reaches +4, because the plague must always be able to come.
+HEALTH_RESISTANCE: dict[str, int] = {
+    "wells": 1,
+    "drained_streets": 2,
+    "brick_drains": 3,
+}
+
+# Children born per thousand people in a year the city fed itself, keyed by the node
+# that reaches it. The classic game has no births at all, and the House of Life
+# outdoes every single rung of the nursery branch that leads to it.
+HEALTH_BIRTHS_PER_THOUSAND: dict[str, int] = {
+    "midwives": 4,
+    "wet_nurses": 8,
+    "milk_herds": 12,
+    "birthing_houses": 18,
+    "foundling_home": 25,
+    "palace_nursery": 34,
+    "house_of_life": 45,
+}
+
+# Bushels that feed one person for one year, keyed by the node that reaches it. The
+# classic twenty becomes sixteen once the fish ponds are dug; this is the one rate
+# where the smallest unlocked value is the one in force.
+HEALTH_BUSHELS_PER_PERSON: dict[str, int] = {
+    "milled_grain": 19,
+    "kitchen_gardens": 18,
+    "oil_presses": 17,
+    "fish_ponds": 16,
 }
 

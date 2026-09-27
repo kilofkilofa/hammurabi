@@ -103,6 +103,7 @@ class FakeUI:
                 state.year,
                 state.starved_this_year,
                 state.immigrants_this_year,
+                state.born_this_year,
                 state.population,
             )
         )
@@ -133,19 +134,19 @@ class FakeUI:
         return next(self._plant)
 
     def ask_research(
-        self, state: GameState, choices: Sequence[tech.Tech]
+        self, state: GameState, choices: Sequence[tech.Offer]
     ) -> str | None:
         self.calls.append(
             (
                 "ask_research",
                 state.year,
                 state.bushels,
-                tuple(item.key for item in choices),
+                tuple(offer.node.key for offer in choices),
             )
         )
         return next(self._research)
 
-    def show_research(self, researched: tech.Tech) -> None:
+    def show_research(self, researched: tech.Node) -> None:
         self.calls.append(("research", researched.key, researched.cost))
 
     def show_error(self, message: str) -> None:

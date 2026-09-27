@@ -49,6 +49,33 @@ class Agriculture:
     rat_divisor: int = 1
 
 
+@dataclass(frozen=True)
+class Health:
+    """The public health of the city.
+
+    The classic game plays with the defaults below and builds nothing: the plague
+    kills half the city, nobody is born and twenty bushels feed a person for a year.
+    The optional health rule set raises these values through the tech tree in
+    :mod:`hammurabi.health`; the engine reads the resulting values once a year and
+    passes them to the rules as plain arguments, so ``rules.py`` never has to know
+    which rule set is being played.
+
+    Attributes:
+        plague_survivor_percent: Share of the people who live through a plague year
+            (classic: 50).
+        plague_resistance: Added to the plague roll, so that the plague comes less
+            often (classic: 0).
+        births_per_thousand: Children born for every thousand people in a year the
+            city fed itself (classic: 0).
+        bushels_per_person: Bushels that feed one person for one year (classic: 20).
+    """
+
+    plague_survivor_percent: int = config.PLAGUE_SURVIVOR_PERCENT
+    plague_resistance: int = 0
+    births_per_thousand: int = 0
+    bushels_per_person: int = config.BUSHELS_PER_PERSON
+
+
 @dataclass
 class GameState:
     """The complete mutable state of one game.
@@ -60,13 +87,19 @@ class GameState:
         agriculture: Whether the optional agriculture rule set is in play, in
             which case the ruler may research the farming technologies of
             :mod:`hammurabi.tech` while the term runs.
-        unlocked: Keys of the farming technologies researched so far; empty in
-            every classic game.
+        health: Whether the optional health rule set is in play, in which case the
+            ruler may research the public-health measures of
+            :mod:`hammurabi.health` with the same yearly question. With both rule
+            sets in play one question a year covers both trees.
+        unlocked: Keys of the technologies researched so far, from either rule set;
+            empty in every classic game.
         population: People currently living in the city.
         acres: Acres of land owned.
         bushels: Bushels of grain in the store.
         starved_this_year: People who starved during the last year.
         immigrants_this_year: People who arrived during the last year.
+        born_this_year: Children born during the last year; ``0`` in a classic
+            game, and in a year the city could not feed itself.
         rats_ate_this_year: Bushels eaten by rats during the last year.
         yield_per_acre: Harvest of the last year in bushels per planted acre.
         plague_this_year: Whether the plague struck at the start of this year.
@@ -85,12 +118,14 @@ class GameState:
     year: int = 0
     term_years: int = config.TERM_YEARS
     agriculture: bool = False
+    health: bool = False
     unlocked: frozenset[str] = frozenset()
     population: int = config.START_POPULATION
     acres: int = config.START_ACRES
     bushels: int = config.START_BUSHELS
     starved_this_year: int = 0
     immigrants_this_year: int = config.START_IMMIGRANTS
+    born_this_year: int = 0
     rats_ate_this_year: int = config.START_RATS_ATE
     yield_per_acre: int = config.START_YIELD_PER_ACRE
     plague_this_year: bool = False

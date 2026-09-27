@@ -182,6 +182,87 @@ survives one — but it does not give that city land. A century of good harvests
 doubles the population, so a ruler who wants the acres per person of the verdict
 to hold must buy acres as well; the tree is what pays for them.
 
+### Health rule set (`--health`)
+
+`hammurabi --health` adds the other optional rule set: the public-health measures of
+Sumeria, bought with the same yearly research as the farming tree. Once a year, in
+the same moment the agriculture rule set uses, the ruler may pay for **one** measure
+out of the grain in store. The measure takes effect in the years that follow, costs
+no random draw of its own, and changes nothing else about the game. With both rule
+sets in play the offer covers both trees — a year holds one research moment however
+many programmes it serves — and the table says which programme offers each node.
+
+The tree holds 19 measures; all of them cost 84,490 bushels between them, a third of
+the farming ladder, because what it buys is people rather than grain. They stand in
+four branches — the water, the healers, the nursery and the food — and meet in the
+capstone. The **House of Life**, which needs the deepest measure of every branch at
+once, is the last word in medicine. The table is printed in the order a city can pay
+for it, and its first four rungs are one of each branch, so even a young treasury can
+choose where to begin.
+
+| Measure | Cost (bushels) | Requires | Effect |
+| --- | --- | --- | --- |
+| Wells | 100 | — | plague resistance: +1 |
+| Herb gatherers | 140 | — | plague survivors: 50% -> 60% |
+| Midwives | 190 | — | +4 births per 1000 people |
+| Milled grain | 250 | — | 20 -> 19 bushels per person |
+| Drained streets | 330 | Wells | plague resistance: +1 -> +2 |
+| Physicians | 450 | Herb gatherers | plague survivors: 60% -> 70% |
+| Wet nurses | 610 | Midwives | +8 births per 1000 people |
+| Kitchen gardens | 820 | Milled grain | 19 -> 18 bushels per person |
+| Brick-lined drains | 1100 | Drained streets | plague resistance: +2 -> +3 |
+| Doctors | 1500 | Physicians | plague survivors: 70% -> 80% |
+| Milk herds | 2000 | Wet nurses | +12 births per 1000 people |
+| Oil presses | 2700 | Kitchen gardens | 18 -> 17 bushels per person |
+| Healing houses | 3700 | Doctors | plague survivors: 80% -> 85% |
+| Birthing houses | 4900 | Milk herds | +18 births per 1000 people |
+| Fish ponds | 6700 | Oil presses | 17 -> 16 bushels per person |
+| Temple hospital | 9000 | Healing houses | plague survivors: 85% -> 90% |
+| Foundling home | 12000 | Birthing houses | +25 births per 1000 people |
+| Palace nursery | 16000 | Foundling home | +34 births per 1000 people |
+| House of Life | 22000 | Brick-lined drains, Temple hospital, Palace nursery, Fish ponds | plague survivors: 90% -> 95%, +45 births per 1000 people |
+
+Four rules change, each of them with the classic value as its default, so a game
+without the flag is bit for bit the 1978 game:
+
+| Rule | Classic | With the health rule set |
+| --- | --- | --- |
+| the plague's survivors | `P // 2` | the share the healer branch reaches, `P * survivor_percent // 100` |
+| the plague roll | the vintage `INT(10 * (2 * RND(1) - .3))` | the offset shifts by a tenth per point of resistance, which takes five years in a hundred out of the plague |
+| the people one bushel feeds | `bushels // 20` | `bushels // bushels_per_person`, down to sixteen |
+| the births of a year | none at all | `P * per_thousand // 1000`, and only in a year the city fed itself |
+
+The **water** branch takes five years in a hundred out of the plague at every rung,
+so the deepest drains leave the plague 5 years in a hundred and no measure can
+abolish it. The **healers** branch decides how many of the stricken live: six in ten
+with the herb gatherers, nine in ten with the temple hospital and nineteen in twenty
+with the House of Life. The **nursery** branch is the only one of the four that adds
+people to the city, up to 45 children for every 1000 people in a year the city fed
+itself. The **food** branch brings the bushels that feed one person for a year from 20 down
+to 16: it is the cheapest way to keep a growing city alive and the only one of the
+four that the granary notices.
+
+What the tree is worth is a measurement rather than a promise, and it is a modest
+one: a reign that only heals is impeached for famine within a decade, because what a
+growing city needs is a harvest, not medicine, and no measure of the tree touches the
+fields. The measured arc of a healer's plan — how far the nineteen measures are
+actually bought — is in [`balancing.md`](./balancing.md), next to the row that prices
+the one research moment: a ruler who splits it between both programmes buys part of
+each and finishes neither.
+
+Four consequences are worth stating plainly:
+
+- the research is paid **before** the immigration formula runs, so a city that built
+  a measure that year receives slightly fewer newcomers, exactly as with the farming
+  tree;
+- the question is put only when the store can afford at least one measure, so a ruler
+  without grain is never asked a question they cannot answer, and a classic game is
+  never asked at all;
+- no draw is added, so the same seed produces exactly the same events with and
+  without the flag: a ruler who declines every offer plays the classic term unchanged;
+- the public health of a year is read at the start of it, so a measure paid for in
+  December shows in the following year, the roll of that year included.
+
 ### End of game (after the tenth year)
 
 Two metrics drive the final evaluation:
@@ -230,6 +311,7 @@ Each milestone is independently testable and ends with `progress.md` updated.
 | M6 | Term as a documented rule | The marathon rule set and `--years`; the term travels in `GameState`; balancing notes for the century |
 | M7 | Agriculture rule set | The optional `--agriculture` tech tree of §4: `tech.py`, the research step in the engine, the tree in the UI, and the measured trade-off in the balancing notes |
 | M8 | A tree that takes a lifetime | The fifteen-node tree of §4, its price ladder and the measured eighty-five-year plan: the deeper `tech.py`, the progress line in the UI, and the balancing notes re-measured rung by rung |
+| M9 | Health rule set | The optional `--health` tree of §4: `health.py`, the `TechTree` machinery shared with `tech.py`, the union of both programmes in the one research moment of a year, and the measured worth of the tree in the balancing notes |
 
 ### Stretch ideas (after v1.0)
 
@@ -300,6 +382,30 @@ reign's work rather than a decade's trick:
   the whole tree before the term ends;
 - the UI reports how far the programme has come with the research question, and
   `docs/balancing.md` records the arc of the plan rung by rung.
+
+### Target outcome for v1.4 (the health rule set)
+
+`1.4.0` keeps the classic game and the farming rule set as they are — every change
+stays behind its own flag — and adds the second opt-in rule set of §4:
+
+- `hammurabi --health` plays the game with the public-health tree; without the flag
+  nothing at all changes, not even a random draw, and a health game that declines
+  every offer is the classic term bit for bit;
+- the tree lives in `health.py` as pure data and shares the research machinery of
+  `tech.py` (`Node`, `TechTree`, `Offer`), so `tech.enabled_trees` is the single
+  place that maps a rule-set flag to the tree it plays;
+- the two rule sets share the one research moment of a year: with both flags the
+  offer covers both trees, the table names the programme of every node, and one
+  question a year is asked;
+- the public health travels in `GameState` (`health`, and the `born_this_year` the
+  report names) and in a `Health` value the engine folds once a year, so `rules.py`
+  keeps its classic defaults while the survivor share, the plague resistance, the
+  births and the bushels that feed a person all enter as plain arguments;
+- the suite covers the tree, the four rules, the births in the report, the plague
+  message, the programme column and both entry-point flags; `docs/balancing.md`
+  records what the tree is worth — how far a health-only reign actually climbs it,
+  and what splitting the research moment between the two programmes costs — instead
+  of claiming a lifetime this rule set cannot fill.
 
 ## 7. Tech stack
 

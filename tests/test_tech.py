@@ -82,16 +82,16 @@ def test_the_first_node_of_a_branch_is_what_the_next_one_needs() -> None:
         "harvest_crews": "iron_ploughshares",
     }
     for key, needs in chain.items():
-        assert tech.node(key).requires == _unlocked(needs)
+        assert tech.FARMING.node(key).requires == _unlocked(needs)
     for key in OPENING_KEYS:
-        assert tech.node(key).requires == frozenset()
+        assert tech.FARMING.node(key).requires == frozenset()
 
 
 def test_every_node_is_reachable_from_the_opening_nodes() -> None:
     """No rung is stranded: each is open once the ones below it are unlocked."""
     unlocked: set[str] = set()
     while True:
-        opened = {item.key for item in tech.available(frozenset(unlocked))}
+        opened = {item.key for item in tech.FARMING.available(frozenset(unlocked))}
         if not opened:
             break
         unlocked |= opened
@@ -111,17 +111,17 @@ def test_the_printed_order_is_a_valid_plan() -> None:
 
 def test_the_capstone_waits_for_the_deepest_yield_and_the_best_storage() -> None:
     """The almanac closes the tree: without either branch it is not on offer."""
-    almanac = tech.node("almanac")
+    almanac = tech.FARMING.node("almanac")
     assert almanac.requires == _unlocked("seed_corn", "vaults")
-    assert "almanac" not in [item.key for item in tech.available(_unlocked())]
+    assert "almanac" not in [item.key for item in tech.FARMING.available(_unlocked())]
     assert "almanac" not in [
-        item.key for item in tech.available(_unlocked(*FIELD_KEYS))
+        item.key for item in tech.FARMING.available(_unlocked(*FIELD_KEYS))
     ]
     assert "almanac" not in [
-        item.key for item in tech.available(_unlocked(*STORE_KEYS))
+        item.key for item in tech.FARMING.available(_unlocked(*STORE_KEYS))
     ]
     assert "almanac" in [
-        item.key for item in tech.available(_unlocked(*(FIELD_KEYS + STORE_KEYS)))
+        item.key for item in tech.FARMING.available(_unlocked(*(FIELD_KEYS + STORE_KEYS)))
     ]
 
 
@@ -150,9 +150,9 @@ def test_the_prices_climb_a_ladder_of_about_half_again_a_rung() -> None:
 
 def test_the_first_year_can_afford_every_opening_node() -> None:
     """The tree opens with rungs the starting store can pay for out of hand."""
-    offered = tech.offers(_unlocked(), bushels=config.START_BUSHELS)
-    assert [item.key for item in offered] == list(OPENING_KEYS)
-    assert all(item.cost <= config.START_BUSHELS for item in offered)
+    offered = tech.FARMING.offers(_unlocked(), bushels=config.START_BUSHELS)
+    assert [offer.node.key for offer in offered] == list(OPENING_KEYS)
+    assert all(offer.node.cost <= config.START_BUSHELS for offer in offered)
 
 
 def test_every_node_has_a_name_and_an_effect_for_the_player() -> None:
@@ -164,19 +164,19 @@ def test_every_node_has_a_name_and_an_effect_for_the_player() -> None:
 def test_the_effects_name_the_figures_they_change() -> None:
     """The line the player reads quotes the constant behind it."""
     for key, rate in config.TECH_ACRES_PER_SEED.items():
-        assert str(rate) in tech.node(key).effect
+        assert str(rate) in tech.FARMING.node(key).effect
     for key, rate in config.TECH_ACRES_PER_WORKER.items():
-        assert str(rate) in tech.node(key).effect
+        assert str(rate) in tech.FARMING.node(key).effect
     for key, divisor in config.TECH_RAT_DIVISOR.items():
-        assert f"1/{divisor}" in tech.node(key).effect
+        assert f"1/{divisor}" in tech.FARMING.node(key).effect
     for key in FIELD_KEYS:
         assert (
             f"+{config.TECH_YIELD_BONUS_PER_NODE} bushel per acre"
-            in tech.node(key).effect
+            in tech.FARMING.node(key).effect
         )
     assert (
         f"+{config.TECH_YIELD_BONUS_ALMANAC} bushel per acre"
-        in tech.node("almanac").effect
+        in tech.FARMING.node("almanac").effect
     )
 
 
@@ -186,17 +186,17 @@ def test_the_second_rung_of_a_branch_quotes_the_first_one() -> None:
     workers = config.TECH_ACRES_PER_WORKER
     assert (
         f"{seeds['plough']} -> {seeds['heavy_plough']}"
-        in tech.node("heavy_plough").effect
+        in tech.FARMING.node("heavy_plough").effect
     )
     assert (
         f"{workers['draft_teams']} -> {workers['iron_ploughshares']}"
-        in tech.node("iron_ploughshares").effect
+        in tech.FARMING.node("iron_ploughshares").effect
     )
 
 
 def test_an_unknown_key_is_reported() -> None:
     with pytest.raises(KeyError):
-        tech.node(UNKNOWN)
+        tech.FARMING.node(UNKNOWN)
 
 
 def test_every_node_has_a_price() -> None:
@@ -208,43 +208,43 @@ def test_every_node_has_a_price() -> None:
 
 
 def test_the_sprouting_nodes_are_open_from_the_first_year() -> None:
-    assert tuple(item.key for item in tech.available(_unlocked())) == OPENING_KEYS
+    assert tuple(item.key for item in tech.FARMING.available(_unlocked())) == OPENING_KEYS
 
 
 def test_a_node_waits_for_its_prerequisite() -> None:
-    assert "manuring" not in [item.key for item in tech.available(_unlocked())]
-    assert "manuring" in [item.key for item in tech.available(_unlocked("fallow"))]
-    assert "silos" in [item.key for item in tech.available(_unlocked("granaries"))]
-    assert "rotation" not in [item.key for item in tech.available(_unlocked("fallow"))]
+    assert "manuring" not in [item.key for item in tech.FARMING.available(_unlocked())]
+    assert "manuring" in [item.key for item in tech.FARMING.available(_unlocked("fallow"))]
+    assert "silos" in [item.key for item in tech.FARMING.available(_unlocked("granaries"))]
+    assert "rotation" not in [item.key for item in tech.FARMING.available(_unlocked("fallow"))]
 
 
 def test_can_research_needs_the_prerequisites_and_the_grain() -> None:
     fallow = config.TECH_COSTS["fallow"]
-    assert tech.can_research("fallow", unlocked=_unlocked(), bushels=fallow)
-    assert not tech.can_research("fallow", unlocked=_unlocked(), bushels=fallow - 1)
-    assert not tech.can_research(
+    assert tech.FARMING.can_research("fallow", unlocked=_unlocked(), bushels=fallow)
+    assert not tech.FARMING.can_research("fallow", unlocked=_unlocked(), bushels=fallow - 1)
+    assert not tech.FARMING.can_research(
         "manuring", unlocked=_unlocked(), bushels=config.TECH_COSTS["manuring"]
     )
-    assert not tech.can_research(
+    assert not tech.FARMING.can_research(
         "fallow", unlocked=_unlocked("fallow"), bushels=fallow
     )
 
 
 def test_can_research_reports_an_unknown_key() -> None:
     with pytest.raises(KeyError):
-        tech.can_research(UNKNOWN, unlocked=_unlocked(), bushels=10_000_000)
+        tech.FARMING.can_research(UNKNOWN, unlocked=_unlocked(), bushels=10_000_000)
 
 
 def test_offers_lists_what_the_store_can_pay_for_in_tree_order() -> None:
     costs = config.TECH_COSTS
     # A small store limits the list; so does the tree itself, however full the
     # store is: only what is unlocked and paid for is ever put on the table.
-    assert tech.offers(_unlocked(), bushels=0) == ()
+    assert tech.FARMING.offers(_unlocked(), bushels=0) == ()
     assert [
-        item.key for item in tech.offers(_unlocked(), bushels=costs["plough"])
+        offer.node.key for offer in tech.FARMING.offers(_unlocked(), bushels=costs["plough"])
     ] == ["plough"]
     assert [
-        item.key for item in tech.offers(_unlocked(), bushels=costs["rotation"])
+        offer.node.key for offer in tech.FARMING.offers(_unlocked(), bushels=costs["rotation"])
     ] == list(OPENING_KEYS)
 
 

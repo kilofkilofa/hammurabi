@@ -12,13 +12,15 @@ The measured results quoted in ``docs/balancing.md`` come from these policies.
 sows at the rate the unlocked technology allows and pays for its research out of
 the grain left after the food and the seed of the year, never out of the grain the
 city needs — which is the whole trade-off that rule set asks about.
+:class:`HealerPolicy` plays the optional health rule set the same way, ranking the
+rungs by the people they save from the plague instead of by the harvest they add.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 
-from hammurabi import config, rules, tech
+from hammurabi import config, health, rules, tech
 from hammurabi.game import Game
 from hammurabi.models import GameState
 from hammurabi.random_source import SeededRandom
@@ -27,6 +29,28 @@ from tests.support import CarefulUI
 #: One accepted answer: what was asked, the number given, and the figures the
 #: engine showed next to the question (bushels in store, people in the city).
 Answer = tuple[str, int, int, int]
+
+#: The value of every rate a node's delta may carry in the classic game. A policy
+#: ranks the offers of both rule sets with one key, so a rate a node does not touch
+#: has to answer with the classic value rather than with an error.
+CLASSIC_RATES: dict[str, int] = {
+    "yield_bonus": 0,
+    "rat_divisor": 1,
+    "plague_survivor_percent": config.PLAGUE_SURVIVOR_PERCENT,
+    "plague_resistance": 0,
+    "births_per_thousand": 0,
+    "bushels_per_person": config.BUSHELS_PER_PERSON,
+}
+
+
+def rate(node: tech.Node, name: str) -> int:
+    """Return the rate ``name`` that ``node`` reaches, classic when it says nothing.
+
+    A node of the farming tree carries no plague survivor share and a node of the
+    health tree carries no harvest bonus, so a policy that may be offered both needs
+    a default for the rates the node is silent about.
+    """
+    return getattr(node.delta, name, CLASSIC_RATES[name])
 
 
 class Policy(CarefulUI):
@@ -65,11 +89,11 @@ class Policy(CarefulUI):
         return self._record("plant", super().ask_acres_to_plant(state), state)
 
     def ask_research(
-        self, state: GameState, choices: Sequence[tech.Tech]
+        self, state: GameState, choices: Sequence[tech.Offer]
     ) -> str | None:
         """Record and answer the research question, then decide through a hook."""
         self.calls.append(
-            ("ask_research", state.year, tuple(item.key for item in choices))
+            ("ask_research", state.year, tuple(offer.node.key for offer in choices))
         )
         return self._choose_research(choices)
 
@@ -81,7 +105,7 @@ class Policy(CarefulUI):
         """Sell nothing; a policy that trades land overrides this."""
         return 0
 
-    def _choose_research(self, choices: Sequence[tech.Tech]) -> str | None:
+    def _choose_research(self, choices: Sequence[tech.Offer]) -> str | None:
         """Research nothing; the policies that farm override this."""
         return None
 
@@ -160,7 +184,7 @@ class FarmerPolicy(Policy):
         return self._record("plant", self._sowable(state), state)
 
     def ask_research(
-        self, state: GameState, choices: Sequence[tech.Tech]
+        self, state: GameState, choices: Sequence[tech.Offer]
     ) -> str | None:
         """Buy the best node the surplus of the year can pay for, or nothing.
 
@@ -169,23 +193,23 @@ class FarmerPolicy(Policy):
         a city that must feed itself would put them in.
         """
         self.calls.append(
-            ("ask_research", state.year, tuple(item.key for item in choices))
+            ("ask_research", state.year, tuple(offer.node.key for offer in choices))
         )
         surplus = self._surplus(state)
-        affordable = [item for item in choices if item.cost <= surplus]
+        affordable = [offer for offer in choices if offer.node.cost <= surplus]
         if not affordable:
             return None
         chosen = min(
             affordable,
-            key=lambda item: (
-                -item.delta.yield_bonus,
-                -item.delta.rat_divisor,
-                item.cost,
+            key=lambda offer: (
+                -rate(offer.node, "yield_bonus"),
+                -rate(offer.node, "rat_divisor"),
+                offer.node.cost,
             ),
         )
-        self.researched.append(chosen.key)
-        self.bought.append((state.year, chosen.key))
-        return chosen.key
+        self.researched.append(chosen.node.key)
+        self.bought.append((state.year, chosen.node.key))
+        return chosen.node.key
 
     def _sowable(self, state: GameState) -> int:
         """Return the acres the land, the seed and the labour of the year allow."""
@@ -201,7 +225,7 @@ class FarmerPolicy(Policy):
     def _surplus(self, state: GameState) -> int:
         """Return the grain left once the year's food and seed are set aside."""
         settings = tech.settings(state.unlocked)
-        food = state.population * config.BUSHELS_PER_PERSON
+        food = state.population * health.healers(state.unlocked).bushels_per_person
         sowable = min(
             state.acres,
             rules.max_plantable_acres(
@@ -213,12 +237,69 @@ class FarmerPolicy(Policy):
         )
 
 
+class HealerPolicy(FarmerPolicy):
+    """A careful ruler who tends the public health instead of the fields.
+
+    The sowing and the research discipline are the farmer's: the tree's own rates
+    decide how much land is sown, and nothing is ever paid for out of the grain the
+    city needs. What changes is the ranking, because the two programmes answer
+    different questions. Feeding a person out of fewer bushels comes first, because
+    that is what keeps a growing city alive; then the people the healer branch saves
+    from the plague, the plagues the water branch keeps away, and last the children
+    the nursery branch brings, which raise the demand for bread rather than the
+    supply. A rung of the farming tree, which touches none of those, is bought only
+    when it is the cheapest thing on the table. The measured plan of that policy is in
+    ``docs/balancing.md``.
+    """
+
+    def ask_bushels_to_feed(self, state: GameState) -> int:
+        """Record and answer the feeding question at the health in force.
+
+        A city that mills its grain and digs fish ponds needs fewer bushels for the
+        same people, and the grain not spent on bread is what pays for the rest of the
+        programme. Feeding at the classic twenty would throw that away twice over: the
+        listing keeps no surplus for a year in which everybody was fed, so the extra
+        bushels simply disappear.
+        """
+        self.calls.append(("ask_feed", state.population, state.bushels))
+        rate = health.healers(state.unlocked).bushels_per_person
+        return self._record(
+            "feed", min(state.population * rate, state.bushels), state
+        )
+
+    def ask_research(
+        self, state: GameState, choices: Sequence[tech.Offer]
+    ) -> str | None:
+        """Buy the best rung of either tree the surplus of the year can pay for."""
+        self.calls.append(
+            ("ask_research", state.year, tuple(offer.node.key for offer in choices))
+        )
+        surplus = self._surplus(state)
+        affordable = [offer for offer in choices if offer.node.cost <= surplus]
+        if not affordable:
+            return None
+        chosen = min(
+            affordable,
+            key=lambda offer: (
+                rate(offer.node, "bushels_per_person"),
+                -rate(offer.node, "plague_survivor_percent"),
+                -rate(offer.node, "plague_resistance"),
+                -rate(offer.node, "births_per_thousand"),
+                offer.node.cost,
+            ),
+        )
+        self.researched.append(chosen.node.key)
+        self.bought.append((state.year, chosen.node.key))
+        return chosen.node.key
+
+
 def play_game(
     seed: int,
     policy: type[Policy] = CarefulPolicy,
     *,
     term_years: int = config.TERM_YEARS,
     agriculture: bool = False,
+    health: bool = False,
 ) -> tuple[Game, Policy]:
     """Play one whole term with ``policy``, seeded with ``seed``.
 
@@ -228,7 +309,9 @@ def play_game(
         term_years: Length of the term in years, so that a batch can play the
             marathon as well as the classic ten years.
         agriculture: Whether to play the optional agriculture rule set, which is
-            the only thing that lets a policy research the tech tree.
+            the only thing that lets a policy research the farming tree.
+        health: Whether to play the optional health rule set. With both rule sets on,
+            the year still holds one research moment, so the offer covers both trees.
 
     Returns:
         The finished game and the policy, so that a test can read the verdict,
@@ -238,7 +321,9 @@ def play_game(
     game = Game(
         SeededRandom(seed=seed),
         ui,
-        state=GameState(term_years=term_years, agriculture=agriculture),
+        state=GameState(
+            term_years=term_years, agriculture=agriculture, health=health
+        ),
     )
     game.play()
     return game, ui

@@ -36,28 +36,62 @@ def harvest_yield(rng: RandomSource, *, bonus: int = 0) -> int:
     return rng.randint(config.YIELD_MIN, config.YIELD_MAX) + bonus
 
 
-def plague_roll(rng: RandomSource) -> int:
+def plague_roll(rng: RandomSource, *, resistance: int = 0) -> int:
     """Return the vintage plague roll ``INT(10 * (2 * RND(1) - .3))``.
 
     The listing draws this at the end of a year (line 542) to decide the year
     that follows. The roll ranges from -3 to 16 and is not positive for 20% of
     the draws, which is when the plague strikes.
+
+    The water branch of the health rule set shifts the offset before the roll is
+    taken, so the plague finds fewer years: one point of resistance moves the
+    offset by a tenth, which takes five years in a hundred out of the plague.
+    Shifting the offset rather than the roll itself is what makes that step
+    possible at all, because the roll is whole and its own steps are five years
+    wide near zero; a shift is also what keeps the deepest drains from abolishing
+    the plague, which no rung of the tree may do.
+
+    Args:
+        rng: Source of the draw.
+        resistance: Points of public-health resistance in force; ``0`` in the
+            classic game, which draws exactly the vintage roll.
+
+    Returns:
+        The roll carried over to the next year.
     """
-    return int(10 * (2 * rng.random() - config.PLAGUE_ROLL_OFFSET))
+    shift = resistance * config.PLAGUE_RESISTANCE_OFFSET
+    return int(10 * (2 * rng.random() - config.PLAGUE_ROLL_OFFSET + shift))
 
 
 def plague_strikes(roll: int) -> bool:
     """Return whether the plague strikes for the given ``roll``.
 
-    Mirrors ``227 IF Q>0 THEN 230``: the plague strikes unless the roll carried
-    over from the previous year is positive.
+    Mirrors ``227 IF Q>0 THEN 230``: the plague strikes unless the roll carried over
+    from the previous year is positive. The public-health measures of the health rule
+    set can only make that roll more often positive, which is why they enter through
+    :func:`plague_roll` and not here.
     """
     return roll <= 0
 
 
-def plague_survivors(population: int) -> int:
-    """Return the population left after the plague killed half of it."""
-    return population // 2
+def plague_survivors(
+    population: int, *, survivor_percent: int = config.PLAGUE_SURVIVOR_PERCENT
+) -> int:
+    """Return the population left after a plague year.
+
+    The classic rule buries half the city; the healer branch of the health rule set
+    raises the share who live through the year, until one in twenty is buried. The
+    multiplication happens before the division, so the classic fifty percent is the
+    listing's ``P // 2`` for every population, odd ones included.
+
+    Args:
+        population: People alive before the plague.
+        survivor_percent: Share of them who live through it.
+
+    Returns:
+        The people left after the plague.
+    """
+    return population * survivor_percent // 100
 
 
 def rats_eaten(rng: RandomSource, store: int, *, divisor: int = 1) -> int:
@@ -115,9 +149,46 @@ def immigrants(rng: RandomSource, *, acres: int, bushels: int, population: int) 
 # --- Food, seed and labour ---------------------------------------------------
 
 
-def people_fed(bushels_fed: int) -> int:
-    """Return how many people ``bushels_fed`` can feed (20 bushels each)."""
-    return bushels_fed // config.BUSHELS_PER_PERSON
+def people_fed(
+    bushels_fed: int, *, bushels_per_person: int = config.BUSHELS_PER_PERSON
+) -> int:
+    """Return how many people ``bushels_fed`` can feed.
+
+    The classic rule spends twenty bushels on a person for a year; the food branch of
+    the health tree brings that rate down, and for this rate a lower value is the
+    better medicine.
+
+    Args:
+        bushels_fed: Bushels the ruler set aside for the people.
+        bushels_per_person: Bushels that feed one person for one year.
+
+    Returns:
+        The number of people the grain can feed.
+    """
+    return bushels_fed // bushels_per_person
+
+
+def births(population: int, *, fed: int, per_thousand: int = 0) -> int:
+    """Return how many children are born this year.
+
+    The classic game has no birth rule, so the default of zero keeps it exactly as
+    the listing left it. The health rule set raises the rate through its nursery
+    branch, but only in a year in which the city fed itself: a hungry year is no time
+    for a nursery, and this is also what keeps the rule from deepening a famine the
+    ruler is already being judged for.
+
+    Args:
+        population: People living in the city this year.
+        fed: People the grain of the year could feed.
+        per_thousand: Children born for every thousand people; ``0`` in the classic
+            game.
+
+    Returns:
+        The children born this year, who join the city at the start of the next one.
+    """
+    if per_thousand <= 0 or population <= 0 or fed < population:
+        return 0
+    return population * per_thousand // 1000
 
 
 def starvation(population: int, fed: int) -> int:

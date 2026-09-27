@@ -26,13 +26,14 @@ from pathlib import Path
 
 import pytest
 
-from hammurabi import config, rules, tech
+from hammurabi import config, health, rules, tech
 from hammurabi.game import Game
 from hammurabi.models import GameState, Verdict
 from hammurabi.random_source import SeededRandom
 from tests.policies import (
     CarefulPolicy,
     FarmerPolicy,
+    HealerPolicy,
     Policy,
     SellerPolicy,
     StarverPolicy,
@@ -47,6 +48,10 @@ GAMES = 500
 
 POLICIES = (CarefulPolicy, TraderPolicy, SellerPolicy, StarverPolicy)
 IDS = [policy.__name__ for policy in POLICIES]
+
+#: The fold of the health tree, bound once here because the batches pass a ``health``
+#: flag around and that name would shadow the module it comes from.
+HEALERS = health.healers
 
 
 @dataclass
@@ -71,6 +76,7 @@ class _Year:
     state: GameState
     reported_population: int
     reported_immigrants: int
+    reported_births: int
     plague: bool
     price: int
     store: int
@@ -78,13 +84,22 @@ class _Year:
     sold: int
     fed_with: int
     planted: int
+    survivor_percent: int = config.PLAGUE_SURVIVOR_PERCENT
+    bushels_per_person: int = config.BUSHELS_PER_PERSON
+    births_per_thousand: int = 0
     researched: tuple[str, int] | None = None
 
     @property
     def people(self) -> int:
         """People alive when this year's decisions were made."""
-        opening = self.reported_population + self.reported_immigrants
-        return rules.plague_survivors(opening) if self.plague else opening
+        opening = (
+            self.reported_population + self.reported_immigrants + self.reported_births
+        )
+        if self.plague:
+            return rules.plague_survivors(
+                opening, survivor_percent=self.survivor_percent
+            )
+        return opening
 
     @property
     def acres(self) -> int:
@@ -94,12 +109,21 @@ class _Year:
     @property
     def fed(self) -> int:
         """People the grain the ruler offered could feed."""
-        return rules.people_fed(self.fed_with)
+        return rules.people_fed(
+            self.fed_with, bushels_per_person=self.bushels_per_person
+        )
 
     @property
     def starved(self) -> int:
         """People who went hungry this year."""
         return rules.starvation(self.people, self.fed)
+
+    @property
+    def children(self) -> int:
+        """Children this year's feeding earns for the next year's report."""
+        return rules.births(
+            self.people, fed=self.fed, per_thousand=self.births_per_thousand
+        )
 
 
 def _calls(calls: list[tuple[object, ...]], kind: str) -> list[tuple[object, ...]]:
@@ -125,27 +149,44 @@ def _answer(answers: list[tuple[str, int, int, int]], question: str) -> int:
     return found[0] if found else 0
 
 
-def _years(seed: int, policy: type[Policy], *, agriculture: bool = False):
+def _years(
+    seed: int,
+    policy: type[Policy],
+    *,
+    agriculture: bool = False,
+    health: bool = False,
+):
     """Yield every year of one seeded game as a rebuilt :class:`_Year`."""
     ui = policy()
     game = Game(
         SeededRandom(seed=seed),
         ui,
-        state=GameState(agriculture=agriculture),
+        state=GameState(agriculture=agriculture, health=health),
     )
     while not game.state.game_over and game.state.year < config.TERM_YEARS:
+        # The health in force this year is the one in the state *before* the year
+        # is played: research bought during the year only pays off from the next.
+        in_force = HEALERS(game.state.unlocked)
         seen_calls = len(ui.calls)
         seen_answers = len(ui.answers)
         game.play_year()
         calls = ui.calls[seen_calls:]
         answers = ui.answers[seen_answers:]
-        _, _, _, immigrants, population = _only(calls, "report")
+        _, _, _, immigrants, born, population = _only(calls, "report")
         plague = _calls(calls, "plague")
-        opening = population + immigrants
+        opening = population + immigrants + born
         if plague:
-            assert plague[0] == ("plague", opening, rules.plague_survivors(opening))
+            assert plague[0] == (
+                "plague",
+                opening,
+                rules.plague_survivors(
+                    opening, survivor_percent=in_force.plague_survivor_percent
+                ),
+            )
             assert game.state.plague_this_year is True
-            people = rules.plague_survivors(opening)
+            people = rules.plague_survivors(
+                opening, survivor_percent=in_force.plague_survivor_percent
+            )
         else:
             assert game.state.plague_this_year is False
             people = opening
@@ -157,6 +198,7 @@ def _years(seed: int, policy: type[Policy], *, agriculture: bool = False):
             state=game.state,
             reported_population=population,
             reported_immigrants=immigrants,
+            reported_births=born,
             plague=bool(plague),
             price=_only(calls, "price")[1],
             store=store,
@@ -164,6 +206,9 @@ def _years(seed: int, policy: type[Policy], *, agriculture: bool = False):
             sold=_answer(answers, "sell"),
             fed_with=_answer(answers, "feed"),
             planted=_answer(answers, "plant"),
+            survivor_percent=in_force.plague_survivor_percent,
+            bushels_per_person=in_force.bushels_per_person,
+            births_per_thousand=in_force.births_per_thousand,
             researched=(researched[0][1], researched[0][2]) if researched else None,
         )
 
@@ -239,7 +284,7 @@ def test_the_grain_in_the_store_balances_when_the_ruler_researches() -> None:
             )
             if researched is not None:
                 key, cost = researched
-                assert cost == tech.node(key).cost
+                assert cost == tech.FARMING.node(key).cost
                 assert key in state.unlocked, "the store paid for nothing"
                 expected -= cost
             assert state.bushels == expected, (
@@ -292,6 +337,32 @@ def test_no_game_ever_breaks_a_resource_invariant(policy: type[Policy]) -> None:
             assert state.rats_ate_this_year >= 0
 
 
+def test_no_health_game_ever_breaks_a_resource_invariant() -> None:
+    """The health rule set keeps the store, the land, the births and the tree sound."""
+    for seed in range(GAMES):
+        for year in _years(seed, HealerPolicy, health=True):
+            state = year.state
+            assert state.acres >= 1, "the last acre may not be sold"
+            assert state.bushels >= 0, "the store may not go negative"
+            assert state.health is True
+            assert all(health.HEALTH.node(key).key == key for key in state.unlocked)
+            assert len(state.unlocked) <= health.HEALTH.size
+            # The births of a year follow from its feeding, and a year the city
+            # could not feed itself brings none at all.
+            assert state.born_this_year == year.children
+            assert state.born_this_year >= 0
+            if year.fed < year.people:
+                assert state.born_this_year == 0, "hunger is no time for a nursery"
+            # The public health in force sits inside the bounds the tree documents.
+            assert config.PLAGUE_SURVIVOR_PERCENT <= year.survivor_percent <= (
+                max(config.HEALTH_SURVIVOR_PERCENT.values())
+            )
+            assert year.bushels_per_person <= config.BUSHELS_PER_PERSON
+            assert 0 <= year.births_per_thousand <= (
+                max(config.HEALTH_BIRTHS_PER_THOUSAND.values())
+            )
+
+
 def test_no_agriculture_game_ever_breaks_a_resource_invariant() -> None:
     """The rule set keeps the store, the land and the tree inside their bounds."""
     for seed in range(GAMES):
@@ -300,7 +371,7 @@ def test_no_agriculture_game_ever_breaks_a_resource_invariant() -> None:
             assert state.acres >= 1, "the last acre may not be sold"
             assert state.bushels >= 0, "the store may not go negative"
             assert state.agriculture is True
-            assert all(tech.node(key).key == key for key in state.unlocked)
+            assert all(tech.FARMING.node(key).key == key for key in state.unlocked)
             assert len(state.unlocked) <= len(tech.TECH_TREE)
             assert config.YIELD_MIN <= state.yield_per_acre <= (
                 config.YIELD_MAX + config.TECH_MAX_YIELD_BONUS
@@ -430,17 +501,32 @@ def _documented_row(label: str) -> list[int]:
 
 
 #: The batches ``docs/balancing.md`` quotes and this module replays: the label of
-#: the row, the policy, the rule set and the length of the term. The agriculture
-#: rows are what the second rule set is measured by, so the notes cannot claim
-#: anything about it that the engine does not do.
+#: the row, the policy, the rule sets and the length of the term. The agriculture and
+#: health rows are what the optional rule sets are measured by, so the notes cannot
+#: claim anything about them that the engine does not do.
 BATCHES = [
-    ("careful", CarefulPolicy, False, config.TERM_YEARS),
-    ("careful (marathon)", CarefulPolicy, False, config.MARATHON_TERM_YEARS),
-    ("careful (agriculture)", CarefulPolicy, True, config.TERM_YEARS),
-    ("farmer (agriculture)", FarmerPolicy, True, config.TERM_YEARS),
+    ("careful", CarefulPolicy, False, False, config.TERM_YEARS),
+    ("careful (marathon)", CarefulPolicy, False, False, config.MARATHON_TERM_YEARS),
+    ("careful (agriculture)", CarefulPolicy, True, False, config.TERM_YEARS),
+    ("farmer (agriculture)", FarmerPolicy, True, False, config.TERM_YEARS),
     (
         "farmer (agriculture, marathon)",
         FarmerPolicy,
+        True,
+        False,
+        config.MARATHON_TERM_YEARS,
+    ),
+    (
+        "healer (health, marathon)",
+        HealerPolicy,
+        False,
+        True,
+        config.MARATHON_TERM_YEARS,
+    ),
+    (
+        "split (agriculture + health, marathon)",
+        FarmerPolicy,
+        True,
         True,
         config.MARATHON_TERM_YEARS,
     ),
@@ -452,17 +538,27 @@ ORDER = (Verdict.FANTASTIC, Verdict.MEDIOCRE, Verdict.TYRANT, Verdict.IMPEACHED)
 
 
 @pytest.mark.parametrize(
-    ("label", "policy", "agriculture", "term_years"), BATCHES, ids=BATCH_IDS
+    ("label", "policy", "agriculture", "health", "term_years"),
+    BATCHES,
+    ids=BATCH_IDS,
 )
 def test_the_balancing_notes_describe_the_batch_they_quote(
-    label: str, policy: type[Policy], agriculture: bool, term_years: int
+    label: str,
+    policy: type[Policy],
+    agriculture: bool,
+    health: bool,
+    term_years: int,
 ) -> None:
     """``docs/balancing.md`` quotes the batches this engine really plays."""
     verdicts: Counter[Verdict] = Counter()
     completed = 0
     for seed in range(GAMES):
         game, ui = play_game(
-            seed, policy, term_years=term_years, agriculture=agriculture
+            seed,
+            policy,
+            term_years=term_years,
+            agriculture=agriculture,
+            health=health,
         )
         verdicts[game.state.verdict] += 1
         completed += _finished(ui)
@@ -567,4 +663,202 @@ def test_the_plan_of_the_tree_takes_a_lifetime() -> None:
     # out of time for.
     assert all(games >= GAMES // 2 for _key, games, *_rest in TREE_ARC[:-1])
     assert TREE_ARC[-1][1] < GAMES // 2
+
+
+# --- The arc of the health tree ----------------------------------------------
+
+#: What ``docs/balancing.md`` records of the health tree, measure by measure, over the
+#: 500-game healer marathon batch: the keys in tree order, the games that ever bought
+#: the measure, and the mean and the median year they bought it in. No measure above
+#: the healing houses is ever bought: a reign that only heals does not last long
+#: enough to climb further, which is the measured truth the notes state.
+HEALTH_ARC = (
+    ("wells", 151, 5.9, 6),
+    ("herb_gatherers", 257, 3.3, 3),
+    ("midwives", 58, 9.4, 10),
+    ("milled_grain", 338, 1.1, 1),
+    ("drained_streets", 89, 7.7, 8),
+    ("physicians", 186, 4.6, 5),
+    ("wet_nurses", 33, 11.5, 12),
+    ("kitchen_gardens", 290, 2.2, 2),
+    ("brick_drains", 47, 9.4, 9),
+    ("doctors", 105, 6.3, 6),
+    ("milk_herds", 18, 13.3, 13),
+    ("oil_presses", 150, 4.2, 3),
+    ("healing_houses", 25, 9.5, 8),
+    ("birthing_houses", 0, 0.0, 0),
+    ("fish_ponds", 0, 0.0, 0),
+    ("temple_hospital", 0, 0.0, 0),
+    ("foundling_home", 0, 0.0, 0),
+    ("palace_nursery", 0, 0.0, 0),
+    ("house_of_life", 0, 0.0, 0),
+)
+
+#: The summary the notes quote of the healer batch: the mean and the median measures a
+#: reign ever pays for, the games that bought at least one, and the deepest measure of
+#: the whole tree that any of the 500 games reached.
+HEALER_RUNGS_MEAN = 3.5
+HEALER_RUNGS_MEDIAN = 3
+HEALER_GAMES_WITH_A_MEASURE = 340
+HEALTH_DEEPEST = ("healing_houses", 25)
+
+#: The same arc for the batch that plays both rule sets at once: the farmer of
+#: ``--agriculture``, offered the health measures as well, buys the cheapest rung of
+#: whichever table is on offer. Splitting the one research moment between two
+#: programmes is what this row measures.
+SPLIT_ARC = (
+    ("wells", 309, 4.3, 4),
+    ("herb_gatherers", 296, 6.0, 6),
+    ("midwives", 292, 7.4, 8),
+    ("milled_grain", 291, 8.7, 9),
+    ("drained_streets", 290, 9.9, 10),
+    ("physicians", 290, 11.1, 11),
+    ("wet_nurses", 289, 12.2, 12),
+    ("kitchen_gardens", 288, 13.2, 13),
+    ("brick_drains", 287, 14.3, 14),
+    ("doctors", 284, 15.4, 15),
+    ("milk_herds", 282, 16.5, 16),
+    ("oil_presses", 279, 17.5, 17),
+    ("healing_houses", 277, 18.6, 18),
+    ("birthing_houses", 267, 19.9, 20),
+    ("fish_ponds", 230, 21.9, 21),
+    ("temple_hospital", 140, 25.0, 24),
+    ("foundling_home", 37, 31.7, 32),
+    ("palace_nursery", 1, 39.0, 39),
+    ("house_of_life", 0, 0.0, 0),
+)
+
+#: The splitter's summary: it buys more measures than farming technologies, and the
+#: deepest measure of the health tree is reached once in 500 games.
+SPLIT_HEALTH_RUNGS_MEAN = 8.9
+SPLIT_HEALTH_RUNGS_MEDIAN = 14
+SPLIT_FARMING_RUNGS_MEAN = 4.8
+SPLIT_FARMING_RUNGS_MEDIAN = 6
+SPLIT_GAMES_WITH_A_MEASURE = 309
+SPLIT_DEEPEST = ("palace_nursery", 1)
+
+
+#: The median year a healer survives when the whole tree is handed to it before the
+#: first year: the figure ``docs/balancing.md`` quotes against the careful ruler's
+#: eleventh.
+HEALTH_ONLY_MEDIAN_YEARS = 8
+
+
+def _plays(
+    policy: type[Policy], **flags: bool
+) -> tuple[dict[str, list[int]], list[int], list[int]]:
+    """Replay a marathon batch and return its health arc and its rung counts.
+
+    Returns:
+        The year each measure was bought in, keyed by the measure; the number of
+        measures each game bought; and the number of farming nodes each bought.
+    """
+    years: dict[str, list[int]] = {}
+    health_rungs: list[int] = []
+    farming_rungs: list[int] = []
+    for seed in range(GAMES):
+        _game, ui = play_game(
+            seed, policy, term_years=config.MARATHON_TERM_YEARS, **flags
+        )
+        bought_health = [
+            (year, key) for year, key in ui.bought if key in config.HEALTH_COSTS
+        ]
+        for year, key in bought_health:
+            years.setdefault(key, []).append(year)
+        health_rungs.append(len(bought_health))
+        farming_rungs.append(
+            sum(1 for _year, key in ui.bought if key in config.TECH_COSTS)
+        )
+    return years, health_rungs, farming_rungs
+
+
+def _assert_arc(
+    arc: tuple[tuple[str, int, float, int], ...], years: dict[str, list[int]]
+) -> None:
+    """Assert one arc table against the batch that was played."""
+    for key, games, mean_year, median_year in arc:
+        found = years.get(key, [])
+        assert len(found) == games, f"{key} was bought by {len(found)} games"
+        if not games:
+            assert mean_year == 0.0 and median_year == 0
+            continue
+        assert round(statistics.mean(found), 1) == mean_year, f"{key} mean year"
+        assert statistics.median(found) == median_year, f"{key} median year"
+
+
+def test_the_health_tree_is_climbed_only_as_far_as_a_reign_allows() -> None:
+    """``docs/balancing.md`` records what a health-only reign can actually buy.
+
+    The health programme is priced like the farming one and a health-only reign is
+    short — the harvest, not the plague, decides how long a city lasts — so the arc
+    of the healer batch stops at the healing houses, the thirteenth of the nineteen
+    measures. This test is what makes that claim checkable rather than a remark.
+    """
+    years, rungs, _farming = _plays(HealerPolicy, health=True)
+
+    assert round(statistics.mean(rungs), 1) == HEALER_RUNGS_MEAN
+    assert statistics.median(rungs) == HEALER_RUNGS_MEDIAN
+    assert sum(1 for value in rungs if value) == HEALER_GAMES_WITH_A_MEASURE
+    _assert_arc(HEALTH_ARC, years)
+
+    keys = [key for key, *_rest in HEALTH_ARC]
+    deepest, games = HEALTH_DEEPEST
+    reached = [key for key in keys if years.get(key)]
+    assert HEALTH_ARC[keys.index(deepest)][1] == games
+    assert keys.index(deepest) == len(reached) - 1, "a deeper measure was bought"
+    assert all(
+        not years.get(key) for key in keys if keys.index(key) > keys.index(deepest)
+    ), "a measure the notes call unreachable was bought"
+
+
+def test_the_health_tree_alone_cannot_keep_a_city_alive() -> None:
+    """``docs/balancing.md`` says a whole tree built on day one still starves.
+
+    The claim is the point of the health rule set: medicine is not a harvest, so even
+    a city handed every measure before the first year is impeached for famine in the
+    eighth year on the median, against the eleventh of the careful ruler.
+    """
+    years: list[int] = []
+    completed = 0
+    for seed in range(GAMES):
+        ui = HealerPolicy()
+        game = Game(
+            SeededRandom(seed=seed),
+            ui,
+            state=GameState(
+                term_years=config.MARATHON_TERM_YEARS,
+                health=True,
+                unlocked=frozenset(item.key for item in health.HEALTH_TREE),
+            ),
+        )
+        game.play()
+        years.append(game.state.year)
+        completed += _finished(ui)
+
+    assert completed == 0, "a health-only city must not survive a century"
+    assert statistics.median(years) == HEALTH_ONLY_MEDIAN_YEARS
+
+
+def test_both_programmes_share_the_one_research_moment() -> None:
+    """``docs/balancing.md`` quotes the splitter's arc as well as the healer's.
+
+    The farmer who is offered both tables buys the cheapest rung of either, so the
+    cheap measures arrive long before the deep farming rungs: the one research moment
+    a year is the real price of a second programme.
+    """
+    years, health_rungs, farming_rungs = _plays(
+        FarmerPolicy, agriculture=True, health=True
+    )
+
+    assert round(statistics.mean(health_rungs), 1) == SPLIT_HEALTH_RUNGS_MEAN
+    assert statistics.median(health_rungs) == SPLIT_HEALTH_RUNGS_MEDIAN
+    assert round(statistics.mean(farming_rungs), 1) == SPLIT_FARMING_RUNGS_MEAN
+    assert statistics.median(farming_rungs) == SPLIT_FARMING_RUNGS_MEDIAN
+    assert sum(1 for value in health_rungs if value) == SPLIT_GAMES_WITH_A_MEASURE
+    _assert_arc(SPLIT_ARC, years)
+
+    deepest, games = SPLIT_DEEPEST
+    assert len(years.get(deepest, [])) == games
+    assert "house_of_life" not in years, "the notes call the capstone unreachable"
+
 

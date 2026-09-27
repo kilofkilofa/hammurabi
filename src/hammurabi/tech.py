@@ -1,11 +1,14 @@
-"""The optional agriculture rule set: the tech tree that improves a harvest.
+"""The optional rule sets' research machinery, and the farming tree.
 
-The classic game has no research at all. This module holds the optional farming
-rule set of ``docs/plan.md`` section 4 as pure data, so the engine can decide what
-a ruler may start without knowing a single rule number, and it never touches
-state, the RNG or the terminal: :func:`settings` merely folds the unlocked nodes
-into the :class:`~hammurabi.models.Agriculture` values the rules take as
-arguments.
+The classic game has no research at all. This module holds what the optional rule
+sets share — the :class:`Node` and :class:`TechTree` types and the :class:`Offer`
+the UI is handed — together with the farming tree of ``docs/plan.md`` section 4 as
+pure data, so the engine can decide what a ruler may start without knowing a single
+rule number. It never touches state, the RNG or the terminal: :func:`settings`
+merely folds the unlocked nodes into the
+:class:`~hammurabi.models.Agriculture` values the rules take as arguments, while
+the public-health tree of :mod:`hammurabi.health` folds its own nodes into
+``Health`` the same way.
 
 Fifteen nodes stand in four branches that meet in a capstone. The ox-drawn plough
 leads to the heavy plough and the seed drill, the fallow fields to manuring,
@@ -19,14 +22,55 @@ the work of a lifetime: a node a year is what a century in office affords, but t
 later nodes cost what many harvests leave over, so the measured plan of
 ``docs/balancing.md`` needs eighty to ninety years to buy the whole tree. Every
 price, rate and bonus is a constant in ``config.py``.
+
+:func:`enabled_trees` is the single place that maps the rule-set flags of
+:class:`~hammurabi.models.GameState` to the trees they play, and :func:`offers`
+gathers what every tree in play can sell this year. The engine and the UI both ask
+those two, so neither of them has to know which rule set a tree belongs to.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Generic, Protocol, TypeVar
 
 from hammurabi import config
-from hammurabi.models import Agriculture
+from hammurabi.models import Agriculture, GameState
+
+
+class Node(Protocol):
+    """What the shared research machinery needs from a node of any tree.
+
+    Both the farming :class:`Tech` and the public-health
+    :class:`~hammurabi.health.HealthNode` answer to this, which is what lets one
+    :class:`TechTree` type carry either rule set; the machinery never looks at the
+    delta a node holds, because that is the rule set's own business.
+    """
+
+    key: str
+    name: str
+    requires: frozenset[str]
+    effect: str
+    cost: int
+
+
+#: A node of one particular tree, so a tree can promise what it hands out.
+NodeT = TypeVar("NodeT", bound=Node)
+
+
+@dataclass(frozen=True)
+class Offer(Generic[NodeT]):
+    """One node a ruler may start this year, and the programme offering it.
+
+    The engine offers every node that the trees in play have open and the store can
+    pay for. ``programme`` is the label of the tree the node belongs to, which is
+    how the UI tells a farming node from a public-health one when both rule sets are
+    played at once.
+    """
+
+    programme: str
+    node: NodeT
 
 
 @dataclass(frozen=True)
@@ -77,6 +121,105 @@ class Tech:
     def cost(self) -> int:
         """Bushels of grain the research costs (``config.TECH_COSTS``)."""
         return config.TECH_COSTS[self.key]
+
+
+@dataclass(frozen=True)
+class TechTree(Generic[NodeT]):
+    """One rule set's ladder of nodes, with the questions the engine asks of it.
+
+    The two rule sets are played the same way, so both are a tree of nodes plus the
+    handful of questions the engine and the UI ask about them; which rule set a tree
+    belongs to is decided by :func:`enabled_trees`, not here.
+
+    Attributes:
+        key: Name of the rule set, matching the flag of
+            :class:`~hammurabi.models.GameState` that turns it on.
+        label: What the UI calls the people who research it (``"farmers"``).
+        nodes: The nodes in the order the UI lists them, which is also a plan a city
+            that means to last can pay for rung by rung.
+    """
+
+    key: str
+    label: str
+    nodes: tuple[NodeT, ...]
+
+    @property
+    def size(self) -> int:
+        """Return how many nodes the tree holds, capstone included."""
+        return len(self.nodes)
+
+    def node(self, key: str) -> NodeT:
+        """Return the node of this tree called ``key``.
+
+        Args:
+            key: Identifier of the node, as stored in ``GameState.unlocked``.
+
+        Returns:
+            The matching node.
+
+        Raises:
+            KeyError: If the tree has no such node.
+        """
+        for item in self.nodes:
+            if item.key == key:
+                return item
+        raise KeyError(key)
+
+    def available(self, unlocked: frozenset[str]) -> tuple[NodeT, ...]:
+        """Return the nodes whose prerequisites are met and that are still open.
+
+        ``unlocked`` is read as a set and never changed; tree order is kept, so the
+        first entry is the one the UI lists first.
+        """
+        return tuple(
+            item
+            for item in self.nodes
+            if item.key not in unlocked and item.requires <= unlocked
+        )
+
+    def can_research(
+        self, key: str, *, unlocked: frozenset[str], bushels: int
+    ) -> bool:
+        """Return whether ``key`` may be started with ``bushels`` in the store.
+
+        A node may be started when its prerequisites are met, it is not unlocked yet
+        and the grain in store covers its cost.
+
+        Args:
+            key: Identifier of the node the ruler wants to start.
+            unlocked: Keys of the technologies already unlocked.
+            bushels: Grain in store, which the research is paid from.
+
+        Returns:
+            ``True`` when the research may start.
+
+        Raises:
+            KeyError: If the tree has no node called ``key``.
+        """
+        item = self.node(key)
+        return item in self.available(unlocked) and item.cost <= bushels
+
+    def offers(
+        self, unlocked: frozenset[str], *, bushels: int
+    ) -> tuple[Offer[NodeT], ...]:
+        """Return the nodes of this tree the ruler may start this year, in order.
+
+        The engine asks for research only when this is not empty, so a ruler who
+        cannot afford anything is never asked a question with no answer.
+        """
+        return tuple(
+            Offer(programme=self.label, node=item)
+            for item in self.available(unlocked)
+            if self.can_research(item.key, unlocked=unlocked, bushels=bushels)
+        )
+
+    def mastered(self, unlocked: frozenset[str]) -> tuple[NodeT, ...]:
+        """Return the unlocked nodes of this tree, in tree order.
+
+        The UI counts them for its progress line and names them in the closing
+        report; keys that belong to another tree are ignored.
+        """
+        return tuple(item for item in self.nodes if item.key in unlocked)
 
 
 #: The tree in the order the UI lists it, which is also the order a city that means
@@ -225,68 +368,45 @@ TECH_TREE: tuple[Tech, ...] = (
     ),
 )
 
-def node(key: str) -> Tech:
-    """Return the tree node called ``key``.
+#: The farming tree of the ``--agriculture`` rule set: the fifteen nodes a ruler
+#: buys out of the grain in store, and the ladder of :data:`config.TECH_COSTS` that
+#: prices them.
+FARMING: TechTree[Tech] = TechTree(
+    key="agriculture", label="farmers", nodes=TECH_TREE
+)
 
-    Args:
-        key: Identifier of the node, as stored in ``GameState.unlocked``.
 
-    Returns:
-        The matching :class:`Tech`.
+def enabled_trees(state: GameState) -> tuple[TechTree, ...]:
+    """Return the trees the rule-set flags of ``state`` put in play.
 
-    Raises:
-        KeyError: If the tree has no such node.
+    ``health`` is imported here rather than at the top of the module because that
+    module imports :class:`TechTree` from this one, so a module-level import would
+    close a cycle. This is the only place that maps a rule set to its tree: the
+    engine asks it what may be researched, the UI asks it what to print, and a
+    classic game gets nothing back.
     """
-    for item in TECH_TREE:
-        if item.key == key:
-            return item
-    raise KeyError(key)
+    from hammurabi import health
+
+    trees: list[TechTree] = []
+    if state.agriculture:
+        trees.append(FARMING)
+    if state.health:
+        trees.append(health.HEALTH)
+    return tuple(trees)
 
 
-def available(unlocked: frozenset[str]) -> tuple[Tech, ...]:
-    """Return the nodes whose prerequisites are met and that are still open.
+def offers(
+    trees: Sequence[TechTree], unlocked: frozenset[str], *, bushels: int
+) -> tuple[Offer, ...]:
+    """Return every node the trees in play may start this year, in tree order.
 
-    ``unlocked`` is read as a set and never changed; tree order is kept, so the
-    first entry is the one the UI lists first.
-    """
-    return tuple(
-        item
-        for item in TECH_TREE
-        if item.key not in unlocked and item.requires <= unlocked
-    )
-
-
-def can_research(key: str, *, unlocked: frozenset[str], bushels: int) -> bool:
-    """Return whether ``key`` may be started with ``bushels`` in the store.
-
-    A node may be started when its prerequisites are met, it is not unlocked yet
-    and the grain in store covers its cost.
-
-    Args:
-        key: Identifier of the node the ruler wants to start.
-        unlocked: Keys of the technologies already unlocked.
-        bushels: Grain in store, which the research is paid from.
-
-    Returns:
-        ``True`` when the research may start.
-
-    Raises:
-        KeyError: If the tree has no node called ``key``.
-    """
-    item = node(key)
-    return item in available(unlocked) and item.cost <= bushels
-
-
-def offers(unlocked: frozenset[str], *, bushels: int) -> tuple[Tech, ...]:
-    """Return the nodes the ruler may start this year, in tree order.
-
-    The engine asks for research only when this is not empty, so a ruler who
-    cannot afford anything is never asked a question with no answer.
+    The trees are asked in the order :func:`enabled_trees` hands them out, so a game
+    that plays one rule set gets exactly the list it would have had before the other
+    tree existed. The engine asks for research only when this is not empty, so a
+    ruler who cannot afford anything is never asked a question with no answer.
     """
     return tuple(
-        item
-        for item in available(unlocked)
-        if can_research(item.key, unlocked=unlocked, bushels=bushels)
+        offer for tree in trees for offer in tree.offers(unlocked, bushels=bushels)
     )
 
 

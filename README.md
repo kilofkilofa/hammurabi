@@ -7,15 +7,18 @@ in 1968 and popularised by David H. Ahl's *101 BASIC Computer Games* (1978).
 Govern the city-state of Sumeria for the classic 10-year term — or ask for a
 100-year marathon — buying and selling land, feeding your people and planting
 grain while harvests, rats, immigration and plague decide your fate. Add
-`--agriculture` and you may also pay for the farming technologies of Sumeria.
+`--agriculture` and you may also pay for the farming technologies of Sumeria;
+add `--health` and you may pay for its public-health measures instead.
 
-> **Project status:** v1.3.0 — the full target outcome of
-> [`docs/plan.md`](docs/plan.md) §6 is met. M8 deepened the optional agriculture
-> rule set into a fifteen-node tree whose price ladder spreads the whole
-> programme over eighty to ninety years; M7 put that rule set behind
-> `--agriculture`, and M6 added the second documented rule set — the classic ten
-> years stay the default while `--years 100` plays the marathon. The measured
-> outcome of both is in [`docs/balancing.md`](docs/balancing.md). See
+> **Project status:** v1.4.0 — the full target outcome of
+> [`docs/plan.md`](docs/plan.md) §6 is met. M9 put the public-health rule set of §4
+> behind `--health`, sharing the one research moment of a year with the farming
+> tree; M8 deepened the optional agriculture rule set into a fifteen-node tree
+> whose price ladder spreads the whole programme over eighty to ninety years; M7
+> put that rule set behind `--agriculture`, and M6 added the second documented rule
+> set — the classic ten years stay the default while `--years 100` plays the
+> marathon. The measured outcome of all of them is in
+> [`docs/balancing.md`](docs/balancing.md). See
 > [`docs/progress.md`](docs/progress.md).
 
 ## Requirements
@@ -65,6 +68,7 @@ hammurabi --help      # usage and options
 hammurabi --seed 42   # replay a game: the same seed brings the same events
 hammurabi --years 100 # the marathon: the same rules for a century
 hammurabi --agriculture # the farming tech tree: research out of the grain in store
+hammurabi --health    # the public-health tree: the same research, medicine instead
 hammurabi --version   # print the version
 ```
 
@@ -99,6 +103,21 @@ so the whole programme is the work of a lifetime: measured over five hundred
 marathons, the last node is bought in year 86 on the median, and the classic decade
 is only the first few rungs — [`docs/balancing.md`](docs/balancing.md) has the
 figures.
+
+Add `--health` instead and the yearly question offers the 19 measures of the health
+tree, which start at 100 bushels: the wells, the drained streets and the
+brick-lined drains keep the plague away, so it comes 20, then 15, 10 and finally 5
+years in a hundred; the herb gatherers, the physicians, the doctors, the healing
+houses and the temple hospital save the sick, until nineteen in twenty live through
+a plague year; the midwives, the wet nurses, the milk herds, the birthing houses,
+the foundling home and the palace nursery bring children into the city; and the
+milled grain, the kitchen gardens, the oil presses and the fish ponds bring the
+bushels that feed one person for a year from 20 down to 16. The **House of Life**
+needs the deepest measure of every branch at once. This tree buys people, not
+grain, so it will not save a city from famine on its own — the measured arc of a
+healer's plan is in [`docs/balancing.md`](docs/balancing.md). Ask for both rule
+sets and the one research moment a year serves both trees, as long as you can
+choose.
 
 A line that is not a whole number, or an amount the rules cannot accept, is
 explained and asked for again. When the term ends the game judges you on the

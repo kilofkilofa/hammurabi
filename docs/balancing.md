@@ -22,9 +22,15 @@ for seed in range(500):  # the agriculture rule set, research and all
     ...
 ```
 
+for seed in range(500):  # the health rule set, research and all
+    game, policy = play_game(seed, HealerPolicy, health=True)
+    ...
+```
+
 Four policies keep the classic batch honest: one careful baseline ruler and three
 who each change a single decision, so every branch of the engine is exercised. A
-fifth, `FarmerPolicy`, is the one that plays the agriculture rule set.
+fifth, `FarmerPolicy`, is the one that plays the agriculture rule set, and a sixth,
+`HealerPolicy`, plays the health rule set the same way.
 
 | Policy | What it does |
 | --- | --- |
@@ -33,6 +39,7 @@ fifth, `FarmerPolicy`, is the one that plays the agriculture rule set.
 | `SellerPolicy` | the same, but sells 50 acres whenever an acre fetches 22 bushels or more, keeping at least one acre |
 | `StarverPolicy` | feeds nobody at all, which ends the reign in the first year |
 | `FarmerPolicy` | the careful ruler of the agriculture rule set: sows at the rate the unlocked technology allows, and buys the most valuable technology the year can afford out of the grain left after the food and the seed, never out of the grain the city needs |
+| `HealerPolicy` | the careful ruler of the health rule set: feeds the city at the rate its measures allow and buys the measure that keeps the most people alive — bushels per person first, then the plague's survivors, the plague's years and the births — out of the same surplus |
 
 The rules the batches are measured against are the ones in `plan.md` §4: 20
 bushels feed one person for a year, 1 bushel of seed sows 2 acres, one person
@@ -266,6 +273,115 @@ years of the batches.
   still. The tree is what pays for the acres a ruler must buy to keep the verdict,
   not a substitute for buying them.
 
+## The health rule set
+
+`--health` puts the nineteen public-health measures of `plan.md` §4 in play: one
+measure a year, paid out of the grain in store, at the same research moment the
+farming tree uses. Like the farming tree, the rule set adds no random draw, so a
+health game that declines every offer is the classic term bit for bit; the batches
+below are the ones that build it.
+
+The healer of these measurements is the careful ruler with two changes. It feeds the
+city at the rate its measures allow, because the listing keeps no surplus for a year
+in which everybody was fed; and it buys the measure that is worth most to a city
+that must stay alive — fewer bushels for the same mouths first, then the people the
+healers save, then the plagues the water branch keeps away, and last the children of
+the nursery, which raise the demand for bread before they raise the supply. Like the
+farmer, it never spends the grain the city needs: only what is left after the food
+and the seed of the year. The *splitter* is that same farmer, offered both tables at
+once, taking the cheapest rung of whichever one is on offer.
+
+| Batch | Games | Completed | Impeached mid-term | Fantastic | Mediocre | Tyrant | National fink |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| healer (health, marathon) | 500 | 0 | 500 | 0 | 0 | 0 | 500 |
+| split (agriculture + health, marathon) | 500 | 0 | 500 | 0 | 0 | 0 | 500 |
+
+| Batch | Mean years played | Mean year of a mid-term impeachment |
+| --- | --- | --- |
+| healer (health, marathon) | 6.83 | 6.83 |
+| split (agriculture + health, marathon) | 18.90 | 18.90 |
+
+### How far a reign climbs the tree
+
+The table below reads the healer batch measure by measure: how many of the 500 games
+ever paid for a measure, and the mean and the median year they paid for it in.
+
+| Measure | Cost | Games | Mean year | Median year |
+| --- | --- | --- | --- | --- |
+| Wells | 100 | 151 | 5.9 | 6 |
+| Herb gatherers | 140 | 257 | 3.3 | 3 |
+| Midwives | 190 | 58 | 9.4 | 10 |
+| Milled grain | 250 | 338 | 1.1 | 1 |
+| Drained streets | 330 | 89 | 7.7 | 8 |
+| Physicians | 450 | 186 | 4.6 | 5 |
+| Wet nurses | 610 | 33 | 11.5 | 12 |
+| Kitchen gardens | 820 | 290 | 2.2 | 2 |
+| Brick-lined drains | 1100 | 47 | 9.4 | 9 |
+| Doctors | 1500 | 105 | 6.3 | 6 |
+| Milk herds | 2000 | 18 | 13.3 | 13 |
+| Oil presses | 2700 | 150 | 4.2 | 3 |
+| Healing houses | 3700 | 25 | 9.5 | 8 |
+| Birthing houses | 4900 | 0 | — | — |
+| Fish ponds | 6700 | 0 | — | — |
+| Temple hospital | 9000 | 0 | — | — |
+| Foundling home | 12000 | 0 | — | — |
+| Palace nursery | 16000 | 0 | — | — |
+| House of Life | 22000 | 0 | — | — |
+
+Of the 500 healer games, 340 bought at least one measure and the median reign bought
+three; the Healing houses, the thirteenth of the nineteen measures, are the deepest
+any of the 500 ever paid for, and only 25 games ever did. The second table is the
+splitter's, read the same way, and it climbs much further because the harvest of the
+farming tree keeps its city alive.
+
+| Measure | Cost | Games | Mean year | Median year |
+| --- | --- | --- | --- | --- |
+| Wells | 100 | 309 | 4.3 | 4 |
+| Herb gatherers | 140 | 296 | 6.0 | 6 |
+| Midwives | 190 | 292 | 7.4 | 8 |
+| Milled grain | 250 | 291 | 8.7 | 9 |
+| Drained streets | 330 | 290 | 9.9 | 10 |
+| Physicians | 450 | 290 | 11.1 | 11 |
+| Wet nurses | 610 | 289 | 12.2 | 12 |
+| Kitchen gardens | 820 | 288 | 13.2 | 13 |
+| Brick-lined drains | 1100 | 287 | 14.3 | 14 |
+| Doctors | 1500 | 284 | 15.4 | 15 |
+| Milk herds | 2000 | 282 | 16.5 | 16 |
+| Oil presses | 2700 | 279 | 17.5 | 17 |
+| Healing houses | 3700 | 277 | 18.6 | 18 |
+| Birthing houses | 4900 | 267 | 19.9 | 20 |
+| Fish ponds | 6700 | 230 | 21.9 | 21 |
+| Temple hospital | 9000 | 140 | 25.0 | 24 |
+| Foundling home | 12000 | 37 | 31.7 | 32 |
+| Palace nursery | 16000 | 1 | 39.0 | 39 |
+| House of Life | 22000 | 0 | — | — |
+
+- **The health tree is not a way to live longer.** The healer's mean reign is in the
+  tables above and it is about half the careful ruler's, and it completes no century
+  of 500: a city that only heals starves, because no measure of this tree touches a
+  field. Handing a healer the whole tree from the first year does not save it either
+  — even that city is impeached in the eighth year on the median, against the
+  eleventh of the careful ruler.
+- **A measure cannot feed a city, and the cheap ones are all a short reign affords.**
+  A typical healer spends its few years on the first rungs of the four branches —
+  milled grain in 338 games, kitchen gardens in 290, herb gatherers in 257 — and the
+  deep measures are never reached at all: the deepest one ever bought is the healing
+  houses, in 25 games of 500, and the capstone is out of reach of every measured
+  policy.
+- **The one research moment is the real price of a second programme.** The splitter
+  buys 8.9 health measures for every 4.8 farming rungs (medians 14 and 6), because
+  the cheap measures crowd out the cheap technologies that raise the harvest — and it
+  completes no century either, dying in the nineteenth year on average where the
+  farmer alone completes 249 of 500. A ruler who wants both programmes must choose
+  which of them will be late.
+- **The plague is small change.** The water branch takes the plague from 20 years in
+  a hundred to 5, and the healer branch saves four in ten of the stricken, but the
+  batches show how little that decides: the careful ruler's cities die of hunger, not
+  of plague — the healer's do too.
+- **The food branch is the part that shows.** Milling, gardens, oil presses and fish
+  ponds bring the bushels that feed a person from 20 to 16, and they are the measures
+  most games buy. They are the only part of the tree the granary ever notices.
+
 ## How these notes stay honest
 
 - `tests/test_simulation.py` replays every batch quoted above —
@@ -278,10 +394,16 @@ years of the batches.
   year of each node against the table above, so the claim that the whole
   programme takes a lifetime cannot quietly go stale.
 - `tests/test_docs.py` checks every rule figure quoted above against the constant
-  it documents, and every row of the `plan.md` §4 tree table against the data in
-  `tech.py`, so a changed constant cannot leave a stale number behind here or in
-  `plan.md` and `README.md`.
+  it documents, and every row of the `plan.md` §4 tree tables against the data in
+  `tech.py` and `health.py`, so a changed constant cannot leave a stale number
+  behind here or in `plan.md` and `README.md`.
+- The arc of the health tree is replayed too:
+  `test_the_health_tree_is_climbed_only_as_far_as_a_reign_allows` and
+  `test_both_programmes_share_the_one_research_moment` play the same 500 marathons
+  and check both tables rung by rung, and
+  `test_the_health_tree_alone_cannot_keep_a_city_alive` pins the eighth year the
+  first bullet of that section quotes.
 - To re-measure everything: replay the batches as shown at the top of this file,
   one policy at a time, and replace the tables above. A marathon batch is the
-  same loop with `term_years=config.MARATHON_TERM_YEARS`, and an agriculture
-  batch adds `agriculture=True`.
+  same loop with `term_years=config.MARATHON_TERM_YEARS`, an agriculture batch adds
+  `agriculture=True`, and a health batch adds `health=True`.

@@ -73,7 +73,7 @@ def test_the_first_report_announces_the_five_opening_immigrants() -> None:
     game.play_year()
 
     # The five immigrants are reported before they are added to the city.
-    opening = ("report", 1, 0, config.START_IMMIGRANTS, config.START_POPULATION)
+    opening = ("report", 1, 0, config.START_IMMIGRANTS, 0, config.START_POPULATION)
     assert opening in ui.calls
     assert game.state.population == 100
 
@@ -150,7 +150,7 @@ def test_the_announced_immigrants_join_the_city_in_the_next_report() -> None:
 
     # int(5 * (20 * 1000 + 7000) / 100 / 100 + 1) = 14 newcomers.
     assert announced == 14
-    assert ("report", 2, 0, 14, 100) in ui.calls
+    assert ("report", 2, 0, 14, 0, 100) in ui.calls
     assert ("status", 114, 7000) in ui.calls
 
 
@@ -462,6 +462,173 @@ def test_a_closing_plague_halves_the_population_the_verdict_uses() -> None:
     assert struck.state.population == safe.state.population // 2
 
 
+# --- The health rule set -----------------------------------------------------
+
+
+def test_the_health_flag_adds_no_random_draw() -> None:
+    """A health game with every offer declined replays the classic term exactly.
+
+    The same property the farming rule set has: the flag changes the figures the
+    rules are handed, never the stream of events, so the two rule sets can be
+    measured against each other on the same seeds.
+    """
+    classic = Game(SeededRandom(seed=11), CarefulUI())
+    classic.play()
+
+    ui = CarefulUI()
+    kind = Game(SeededRandom(seed=11), ui, state=GameState(health=True))
+    kind.play()
+
+    assert "ask_research" in ui.names(), "the research question was never put"
+    assert _figures(kind.state) == _figures(classic.state)
+
+
+def test_a_health_measure_is_paid_for_and_shows_from_the_next_year() -> None:
+    """Research costs grain at once and only changes the figures of later years."""
+    ui = FakeUI(feed=(1600,), research=["milled_grain", None])
+    game = Game(_endless_rng(), ui, state=GameState(health=True, bushels=10_000))
+
+    game.play_year()
+
+    assert game.state.unlocked == frozenset({"milled_grain"})
+    assert ("research", "milled_grain", config.HEALTH_COSTS["milled_grain"]) in ui.calls
+    # 1600 bushels feed 80 people at the classic twenty, and the mill bought this
+    # year does not save them.
+    assert game.state.starved_this_year == 20
+
+    game.play_year()
+
+    # The next year the same 1600 bushels feed everybody: the mill shows at last.
+    assert game.state.unlocked == frozenset({"milled_grain"})
+    assert game.state.starved_this_year == 0
+
+
+def test_the_research_question_covers_both_programmes() -> None:
+    """With both rule sets in play one question a year carries both trees."""
+    ui = FakeUI(feed=(2000,), plant=(0,), research=[None])
+    game = Game(
+        _endless_rng(),
+        ui,
+        state=GameState(agriculture=True, health=True, bushels=10_000),
+    )
+
+    game.play_year()
+
+    asked = [call for call in ui.calls if call[0] == "ask_research"]
+    assert len(asked) == 1, "a year holds one research moment"
+    _kind, _year, _bushels, offered = asked[0]
+    assert offered[:3] == ("plough", "fallow", "granaries"), "the farmers come first"
+    assert offered[3:] == ("wells", "herb_gatherers", "midwives", "milled_grain")
+
+
+def test_the_plague_spares_the_share_the_healers_reach() -> None:
+    """The public health in force decides how many the plague takes."""
+    ui = FakeUI(feed=(2000,), plant=(499,))
+    game = Game(
+        _endless_rng(next_plague=PLAGUE_RANDOM),
+        ui,
+        state=GameState(
+            health=True, unlocked=frozenset({"temple_hospital"}), bushels=10_000
+        ),
+    )
+
+    game.play_year()
+    game.play_year()
+
+    plague = [call for call in ui.calls if call[0] == "plague"]
+    assert len(plague) == 1, "the roll made at the end of the first year struck"
+    _kind, before, after = plague[0]
+    assert after == before * config.HEALTH_SURVIVOR_PERCENT["temple_hospital"] // 100
+
+
+def test_the_drains_make_the_plague_find_fewer_years() -> None:
+    """The resistance is in the roll itself, so it changes the year that follows."""
+
+    def roll_for(unlocked: frozenset[str]) -> int:
+        game = Game(
+            _endless_rng(next_plague=0.17),
+            FakeUI(feed=(2000,)),
+            state=GameState(health=True, unlocked=unlocked),
+        )
+        game.play_year()
+        return game.state.plague_roll
+
+    assert roll_for(frozenset()) == 0, "the classic roll for that draw, a plague year"
+    assert roll_for(frozenset({"brick_drains"})) == 3, "shifted by the deepest drains"
+
+
+def test_births_join_the_city_when_the_next_report_opens() -> None:
+    """The nursery works at the end of a year the city was fed in."""
+    ui = FakeUI(feed=(2000,), plant=(999,))
+    game = Game(
+        _endless_rng(),
+        ui,
+        state=GameState(health=True, unlocked=frozenset({"palace_nursery"})),
+    )
+
+    game.play_year()
+
+    rate = config.HEALTH_BIRTHS_PER_THOUSAND["palace_nursery"]
+    assert game.state.born_this_year == rules.births(
+        game.state.population, fed=game.state.population, per_thousand=rate
+    )
+
+    game.play_year()
+
+    reported = [call for call in ui.calls if call[0] == "report"][-1]
+    assert reported[4] == 3, "the second report announces the three children"
+
+
+def test_a_year_the_city_could_not_feed_brings_no_children() -> None:
+    """Hunger is no time for a nursery, whatever the rate in force."""
+    ui = FakeUI(feed=(1600,), plant=(999,))
+    game = Game(
+        _endless_rng(),
+        ui,
+        state=GameState(health=True, unlocked=frozenset({"palace_nursery"})),
+    )
+
+    game.play_year()
+
+    assert game.state.starved_this_year == 20
+    assert game.state.born_this_year == 0
+
+
+def test_a_closing_plague_spares_the_share_the_healers_reach() -> None:
+    """The phantom year of the closing report reads the health in force."""
+    ui = CarefulUI()
+    game = Game(
+        StubRandom(
+            randoms=[SAFE_PLAGUE_RANDOM] * (config.TERM_YEARS - 1) + [PLAGUE_RANDOM],
+            integers=cycle([20, 3, 1, 1]),
+        ),
+        ui,
+        state=GameState(
+            health=True,
+            unlocked=frozenset({"house_of_life"}),
+            bushels=100_000,
+        ),
+    )
+
+    game.play()
+
+    plague = [call for call in ui.calls if call[0] == "plague"]
+    assert len(plague) == 1, "only the closing report resolved a plague"
+    _kind, before, after = plague[0]
+    assert after == before * config.HEALTH_SURVIVOR_PERCENT["house_of_life"] // 100
+
+
+def test_the_health_rule_set_asks_nothing_when_no_measure_is_open() -> None:
+    """A ruler who cannot afford a measure is never asked a question."""
+    ui = FakeUI(feed=(1,))
+    game = Game(_endless_rng(), ui, state=GameState(health=True, bushels=1))
+
+    game.play_year()
+
+    assert "ask_research" not in ui.names()
+    assert game.state.unlocked == frozenset()
+
+
 # --- The whole term ----------------------------------------------------------
 
 
@@ -638,10 +805,12 @@ class _FarmerUI(CarefulUI):
     """A careful player who buys the cheapest technology on offer every year."""
 
     def ask_research(
-        self, state: GameState, choices: Sequence[tech.Tech]
+        self, state: GameState, choices: Sequence[tech.Offer]
     ) -> str | None:
-        self.calls.append(("ask_research", state.year, tuple(i.key for i in choices)))
-        return min(choices, key=lambda item: item.cost).key
+        self.calls.append(
+            ("ask_research", state.year, tuple(o.node.key for o in choices))
+        )
+        return min(choices, key=lambda offer: offer.node.cost).node.key
 
 
 def test_the_classic_rule_set_never_asks_for_research() -> None:
@@ -655,10 +824,15 @@ def test_the_classic_rule_set_never_asks_for_research() -> None:
     assert game.state.unlocked == frozenset()
 
 
+#: The flags of the optional rule sets, which an A/B comparison drops: a game played
+#: with a rule set and a classic game differ only in what those flags add.
+RULE_SET_FLAGS = ("agriculture", "health")
+
+
 def _figures(state: GameState) -> dict[str, object]:
-    """Return a state without the rule-set flag, for an A/B comparison."""
+    """Return a state without its rule-set flags, for an A/B comparison."""
     return {
-        key: value for key, value in asdict(state).items() if key != "agriculture"
+        key: value for key, value in asdict(state).items() if key not in RULE_SET_FLAGS
     }
 
 

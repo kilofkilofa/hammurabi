@@ -17,7 +17,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from hammurabi import __version__, config, rules, tech
+from hammurabi import __version__, config, health, rules, tech
 from hammurabi.random_source import SeededRandom
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -85,30 +85,37 @@ def _money(text: str, pattern: str) -> int:
     return int(found[0].replace(",", ""))
 
 
-def _tree_rows() -> list[tuple[str, int, str, str]]:
-    """Return the rows of the tree table: name, price, prerequisites and effect.
+def _tree_rows(section: str) -> list[tuple[str, int, str, str]]:
+    """Return the rows of one tree table of ``plan.md`` §4.
 
-    The tree is the ``| Node | Cost (bushels) | Requires | Effect |`` table of
-    ``plan.md`` §4. The table is read line by line, before the whitespace of the
-    document is collapsed for the prose checks below: that way the cells of the
-    other tables, which have two or three of them, cannot be mistaken for a row.
+    ``section`` names the subsection as it is written in the heading, so the two
+    trees of §4 cannot be confused with each other. A tree is the
+    ``| Node | Cost (bushels) | Requires | Effect |`` table of that subsection. The
+    table is read line by line, before the whitespace of the document is collapsed
+    for the prose checks below: that way the cells of the other tables, which have
+    two or three of them, cannot be mistaken for a row.
     """
     rows: list[tuple[str, int, str, str]] = []
+    inside = False
     for line in PLAN_SOURCE.splitlines():
-        if not line.startswith("| "):
+        if line.startswith("### "):
+            inside = section in line
+            continue
+        if not inside or not line.startswith("| "):
             continue
         cells = [cell.strip() for cell in line.strip("|").split("|")]
         if len(cells) == 4 and cells[1].isdigit():
             rows.append((cells[0], int(cells[1]), cells[2], cells[3]))
-    assert rows, "no tree table in the plan"
+    assert rows, f"no tree table in the {section} subsection of the plan"
     return rows
 
 
-def _observed_plague_rate() -> float:
+def _observed_plague_rate(*, resistance: int = 0) -> float:
     """Share of the draws, in percent, in which the plague roll strikes."""
     rng = SeededRandom(seed=21)
     strikes = sum(
-        rules.plague_strikes(rules.plague_roll(rng)) for _ in range(DRAWS)
+        rules.plague_strikes(rules.plague_roll(rng, resistance=resistance))
+        for _ in range(DRAWS)
     )
     return 100 * strikes / DRAWS
 
@@ -189,26 +196,54 @@ def test_the_specification_lists_every_node_of_the_tree() -> None:
     data: the name, the price, the prerequisites and the effect the player reads
     have to match a node exactly, in tree order.
     """
-    rows = _tree_rows()
-    assert [name for name, *_rest in rows] == [
-        item.name for item in tech.TECH_TREE
-    ]
+    _assert_tree_table("Agriculture rule set", tech.FARMING)
+
+
+def test_the_specification_lists_every_measure_of_the_health_tree() -> None:
+    """Every measure of :data:`hammurabi.health.HEALTH_TREE` is in its own table."""
+    _assert_tree_table("Health rule set", health.HEALTH)
+
+
+def _assert_tree_table(section: str, tree: tech.TechTree) -> None:
+    """Compare one ``plan.md`` tree table with the tree it documents."""
+    rows = _tree_rows(section)
+    assert [name for name, *_rest in rows] == [item.name for item in tree.nodes]
+    by_name = {item.name: item for item in tree.nodes}
     for name, cost, requires, effect in rows:
-        item = next(item for item in tech.TECH_TREE if item.name == name)
+        item = by_name[name]
         assert cost == item.cost, f"{name} costs {cost} in the table"
         assert effect == item.effect, f"{name} reads differently in the table"
         named = () if requires == "—" else tuple(requires.split(", "))
-        assert _keys_named(named) == set(item.requires), (
+        missing = [need for need in named if need not in by_name]
+        assert not missing, f"{missing} are not names of the {section} tree"
+        assert {by_name[need].key for need in named} == set(item.requires), (
             f"{name} needs {requires} in the table"
         )
 
 
-def _keys_named(names: tuple[str, ...]) -> set[str]:
-    """Return the keys of the nodes with the given names, failing loudly."""
-    by_name = {item.name: item.key for item in tech.TECH_TREE}
-    missing = [name for name in names if name not in by_name]
-    assert not missing, f"{missing} are not node names"
-    return {by_name[name] for name in names}
+def test_the_specification_quotes_the_health_figures() -> None:
+    """The prose of ``plan.md`` §4 names the constants the health tree is built on."""
+    assert _number(PLAN, r"tree holds (\d+) measures") == health.HEALTH.size
+    assert _money(PLAN, r"cost ([\d,]+) bushels between them") == sum(
+        config.HEALTH_COSTS.values()
+    )
+    assert _number(PLAN, r"leave the plague (\d+) years in a hundred") == round(
+        _observed_plague_rate(resistance=max(config.HEALTH_RESISTANCE.values()))
+    )
+    assert _number(PLAN, r"up to (\d+) children for every 1000 people") == max(
+        config.HEALTH_BIRTHS_PER_THOUSAND.values()
+    )
+    assert _figures(PLAN, r"person for a year from (\d+) down to (\d+)") == [
+        (
+            config.BUSHELS_PER_PERSON,
+            min(config.HEALTH_BUSHELS_PER_PERSON.values()),
+        )
+    ]
+    survivors = [config.PLAGUE_SURVIVOR_PERCENT]
+    survivors += sorted(config.HEALTH_SURVIVOR_PERCENT.values())
+    assert set(_text_matches(PLAN, r"plague survivors: (\d+)% -> (\d+)%")) == {
+        (str(lower), str(upper)) for lower, upper in zip(survivors, survivors[1:])
+    }
 
 
 def test_the_specification_quotes_the_agriculture_figures() -> None:
@@ -258,7 +293,11 @@ def test_the_readme_quotes_the_same_rules() -> None:
     assert _number(README, r"cost from (\d+) bushels up") == (
         min(item.cost for item in tech.TECH_TREE)
     )
+    assert _number(README, r"[Tt]he (\d+) measures of the health tree") == (
+        health.HEALTH.size
+    )
     assert "--agriculture" in README
+    assert "--health" in README
 
 
 def test_the_balancing_notes_quote_the_same_rules() -> None:

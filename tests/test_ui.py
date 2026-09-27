@@ -10,7 +10,7 @@ from io import StringIO
 
 import pytest
 
-from hammurabi import config, tech
+from hammurabi import config, health, tech
 from hammurabi.game import Game
 from hammurabi.models import GameState, Verdict
 from hammurabi.random_source import SeededRandom
@@ -355,7 +355,7 @@ def test_the_classic_intro_announces_no_rule_set() -> None:
 def test_the_research_question_lists_what_is_on_offer() -> None:
     ui, buffer, questions = _ui("1")
     stores = config.TECH_COSTS
-    choices = tech.offers(frozenset(), bushels=stores["fallow"])
+    choices = tech.FARMING.offers(frozenset(), bushels=stores["fallow"])
     state = GameState(year=2, bushels=stores["fallow"])
 
     assert ui.ask_research(state, choices) == "plough"
@@ -374,9 +374,13 @@ def test_the_research_question_lists_what_is_on_offer() -> None:
 def test_the_research_question_reports_how_far_the_tree_has_come() -> None:
     """The programme lasts a lifetime, so the ruler is told where they stand."""
     ui, buffer, _ = _ui("1")
-    choices = tech.offers(frozenset({"fallow"}), bushels=config.TECH_COSTS["silos"])
+    choices = tech.FARMING.offers(
+        frozenset({"fallow"}), bushels=config.TECH_COSTS["silos"]
+    )
 
-    ui.ask_research(GameState(unlocked=frozenset({"fallow"})), choices)
+    ui.ask_research(
+        GameState(agriculture=True, unlocked=frozenset({"fallow"})), choices
+    )
 
     assert (
         f"Your farmers have mastered 1 of {len(tech.TECH_TREE)} technologies."
@@ -387,7 +391,7 @@ def test_the_research_question_reports_how_far_the_tree_has_come() -> None:
 def test_the_second_choice_is_the_second_node() -> None:
     ui, _, _ = _ui("2")
     stores = config.TECH_COSTS
-    choices = tech.offers(frozenset(), bushels=stores["fallow"])
+    choices = tech.FARMING.offers(frozenset(), bushels=stores["fallow"])
 
     assert ui.ask_research(GameState(bushels=stores["fallow"]), choices) == "fallow"
 
@@ -395,7 +399,7 @@ def test_the_second_choice_is_the_second_node() -> None:
 def test_answering_zero_researches_nothing() -> None:
     ui, _, questions = _ui("0")
     plough = config.TECH_COSTS["plough"]
-    choices = tech.offers(frozenset(), bushels=plough)
+    choices = tech.FARMING.offers(frozenset(), bushels=plough)
 
     assert ui.ask_research(GameState(bushels=plough), choices) is None
     assert "answer 0 to research nothing" in questions[0]
@@ -405,7 +409,7 @@ def test_a_number_outside_the_list_is_handed_back_to_the_engine() -> None:
     """The UI draws the table but does not rule on it: the engine re-asks."""
     ui, _, _ = _ui("7")
     plough = config.TECH_COSTS["plough"]
-    choices = tech.offers(frozenset(), bushels=plough)
+    choices = tech.FARMING.offers(frozenset(), bushels=plough)
 
     assert ui.ask_research(GameState(bushels=plough), choices) == "7"
 
@@ -413,11 +417,11 @@ def test_a_number_outside_the_list_is_handed_back_to_the_engine() -> None:
 def test_the_technology_researched_is_reported_with_its_effect() -> None:
     ui, buffer, _ = _ui("0")
 
-    ui.show_research(tech.node("granaries"))
+    ui.show_research(tech.FARMING.node("granaries"))
 
     text = render(buffer)
     assert "Your scholars start work on the Granaries" in text
-    assert tech.node("granaries").effect in text
+    assert tech.FARMING.node("granaries").effect in text
 
 
 def test_the_summary_lists_the_researched_technologies_in_tree_order() -> None:
@@ -425,6 +429,7 @@ def test_the_summary_lists_the_researched_technologies_in_tree_order() -> None:
     state = GameState(
         population=50,
         acres=500,
+        agriculture=True,
         unlocked=frozenset({"granaries", "plough"}),
     )
 
@@ -462,3 +467,139 @@ def test_a_whole_agriculture_game_can_be_played_through_the_console_ui() -> None
     assert game.state.unlocked, "the ruler never researched anything"
     assert "Your scholars start work on the Ox-drawn plough" in text
     assert "This is the agriculture rule set" in text
+
+
+# --- The health rule set -----------------------------------------------------
+
+
+def test_the_intro_announces_the_health_rule_set() -> None:
+    """The banner says what the game plays, because the rule set adds a question."""
+    ui, buffer, _ = _ui("0")
+
+    ui.show_intro(GameState(health=True))
+
+    text = render(buffer)
+    assert "This is the health rule set" in text
+    assert f"may also pay for one of the {health.HEALTH.size}" in text
+    # A phrase that fits between two line breaks of the panel, so the assertion
+    # does not have to know where ``rich`` wrapped the sentence.
+    assert "public-health measures" in text
+    assert "out of the grain in store" in text
+
+
+def test_the_intro_announces_both_rule_sets_when_both_are_played() -> None:
+    """One research moment, two programmes: the banner says so before year one."""
+    ui, buffer, _ = _ui("0")
+
+    ui.show_intro(GameState(agriculture=True, health=True))
+
+    text = render(buffer)
+    assert "This is the agriculture and health rule set" in text
+    assert (
+        f"farming technologies and the {health.HEALTH.size} public-health measures"
+        in text
+    )
+    assert "holds one research moment however many programmes it serves" in text
+    assert "a whole programme is the work of a lifetime" in text
+
+
+def test_the_report_announces_the_children_when_health_is_on() -> None:
+    ui, buffer, _ = _ui("0")
+
+    ui.show_report(
+        GameState(health=True, year=2, immigrants_this_year=4, born_this_year=3)
+    )
+
+    assert "3 were born" in render(buffer)
+
+
+def test_the_classic_report_announces_no_children() -> None:
+    """The vintage transcript has no birth rule, so its report gains no clause."""
+    ui, buffer, _ = _ui("0")
+
+    ui.show_report(GameState(year=2, immigrants_this_year=4))
+
+    text = render(buffer)
+    assert "were born" not in text
+    assert "In year 2, 0 people starved, 4 came to the city." in text
+
+
+def test_the_plague_message_names_the_dead_when_the_healers_spared_them() -> None:
+    """The listing's words are kept for a halving; a milder plague names its dead."""
+    ui, buffer, _ = _ui("0")
+
+    ui.show_plague(before=100, after=50)
+    ui.show_plague(before=100, after=90)
+
+    text = render(buffer)
+    assert (
+        "A horrible plague struck! Half the people died. The population fell from "
+        "100 to 50." in text
+    )
+    assert "10 of the 100 people died. The population fell from 100 to 90." in text
+
+
+def test_the_research_question_prints_a_programme_column_when_both_are_played() -> None:
+    """Two tables' worth of offers need a column saying which programme is which."""
+    ui, buffer, _ = _ui("1")
+    state = GameState(agriculture=True, health=True, bushels=10_000)
+    choices = tech.offers(tech.enabled_trees(state), state.unlocked, bushels=10_000)
+
+    assert ui.ask_research(state, choices) == "plough"
+
+    text = render(buffer)
+    assert "Programme" in text
+    assert "Farmers" in text and "Healers" in text
+    assert f"Your farmers have mastered 0 of {tech.FARMING.size} technologies." in text
+    assert f"Your healers have mastered 0 of {health.HEALTH.size} technologies." in text
+    assert "Wells" in text and "Herb gatherers" in text
+
+
+def test_one_programme_needs_no_programme_column() -> None:
+    """With one rule set the table is exactly what it always was."""
+    ui, buffer, _ = _ui("1")
+    state = GameState(health=True, bushels=1000)
+    choices = health.HEALTH.offers(state.unlocked, bushels=state.bushels)
+
+    ui.ask_research(state, choices)
+
+    text = render(buffer)
+    assert "Programme" not in text
+    assert f"Your healers have mastered 0 of {health.HEALTH.size} technologies." in text
+
+
+def test_the_summary_lists_the_measures_of_the_programme_in_tree_order() -> None:
+    ui, buffer, _ = _ui("0")
+    state = GameState(
+        population=50,
+        acres=500,
+        health=True,
+        unlocked=frozenset({"kitchen_gardens", "wells"}),
+    )
+
+    ui.show_summary(state, Verdict.TYRANT)
+
+    assert "Your healers mastered: Wells, Kitchen gardens." in render(buffer)
+
+
+def test_a_whole_health_game_can_be_played_through_the_console_ui() -> None:
+    """The scripted console player takes the first measure it is offered."""
+
+    def read(question: str) -> str:
+        if "wish to research" in question:
+            return "1"
+        return careful_console_answers(question)
+
+    console, buffer = plain_console()
+    game = Game(
+        SeededRandom(seed=1),
+        ConsoleUI(console=console, read=read),
+        GameState(health=True),
+    )
+
+    game.play()
+
+    text = render(buffer)
+    assert game.state.unlocked, "the ruler never built anything"
+    assert "Your scholars start work on the Wells" in text
+    assert "This is the health rule set" in text

@@ -18,11 +18,14 @@ injected :class:`~hammurabi.random_source.RandomSource`. That keeps a game
 reproducible from a seed and testable without a terminal.
 
 The classic rule set is what a fresh :class:`~hammurabi.models.GameState` asks
-for. When ``GameState.agriculture`` is true the engine also lets the ruler pay
-for one node of the tech tree in :mod:`hammurabi.tech` a year; the unlocked
-nodes are read into farming settings at the top of a year, so research takes
-effect in the year that follows. Research costs no random draw, so a seed
-produces exactly the same events with and without the rule set.
+for. When ``GameState.agriculture`` or ``GameState.health`` is true the engine also
+lets the ruler pay for one node of the matching tree — :mod:`hammurabi.tech` for the
+farming one, :mod:`hammurabi.health` for the public-health one — a year; the unlocked
+nodes are read into farming and health settings at the top of a year, so research
+takes effect in the year that follows. The research moment is the same for both rule
+sets, so with both in play one question a year covers both trees. Research costs no
+random draw, so a seed produces exactly the same events with and without a rule set,
+and a bonus only ever changes the figures the rules are handed.
 """
 
 from __future__ import annotations
@@ -30,8 +33,8 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import Protocol, TypeVar
 
-from hammurabi import config, rules, tech
-from hammurabi.models import Agriculture, GameState, Verdict
+from hammurabi import config, health, rules, tech
+from hammurabi.models import Agriculture, GameState, Health, Verdict
 from hammurabi.random_source import RandomSource
 
 #: Type of an answer the engine asks for until it can accept it. The four
@@ -75,15 +78,16 @@ class UI(Protocol):
         """Return how many acres the player wants to sow with seed."""
 
     def ask_research(
-        self, state: GameState, choices: Sequence[tech.Tech]
+        self, state: GameState, choices: Sequence[tech.Offer]
     ) -> str | None:
         """Return the key of the technology to research, or ``None`` for none.
 
-        Asked only when the agriculture rule set is in play and ``choices``, the
-        nodes the store can pay for, is not empty.
+        Asked only when a rule set is in play and ``choices``, the nodes the store can
+        pay for, is not empty. ``choices`` may mix the farming and the public-health
+        trees, and every offer names the programme it comes from.
         """
 
-    def show_research(self, researched: tech.Tech) -> None:
+    def show_research(self, researched: tech.Node) -> None:
         """Report that the ruler has started to research ``researched``."""
 
     def show_error(self, message: str) -> None:
@@ -150,23 +154,23 @@ class Game:
         while not self.state.game_over and self.state.year < self.state.term_years:
             self.play_year()
         if not self.state.game_over:
-            self._closing_report()
+            self._closing_report(health.healers(self.state.unlocked))
             self._evaluate_term()
         return self.state.verdict
 
     def play_year(self) -> None:
         """Play exactly one year of the term.
 
-        The steps follow the order the original listing documents: open the year
-        with its report, trade land, feed the people, sow and harvest, let the rats
-        and the immigrants in, roll the plague for the year to come and finally
-        tally the hunger. With the agriculture rule set the ruler may also start
-        one research between the harvest and the newcomers, because research is
-        paid out of the grain the year actually produced.
+        The steps follow the order the original listing documents: open the year with
+        its report, trade land, feed the people, sow and harvest, let the rats and the
+        newcomers in, roll the plague for the year to come and finally tally the
+        hunger. With a rule set in play the ruler may also start one research between
+        the harvest and the newcomers, because research is paid out of the grain the
+        year actually produced.
 
-        The population is only reduced in that last step, exactly as in the
-        listing (``555 P=C``). Sowing and the immigration formula therefore
-        still use the people who are about to starve.
+        The population is only reduced in that last step, exactly as in the listing
+        (``555 P=C``). Sowing, the immigration formula and the births the next report
+        announces therefore still use the people who are about to starve.
 
         Raises:
             RuntimeError: If the term is over or the ruler was impeached.
@@ -174,22 +178,30 @@ class Game:
         if self.state.game_over or self.state.year >= self.state.term_years:
             raise RuntimeError("cannot play another year: the term is over")
 
-        # The farming technology in force this year: research started in an
-        # earlier year, so a node unlocked now only pays off from the next one.
+        # The technology in force this year: research started in an earlier year, so
+        # a node unlocked now only pays off from the next one.
         settings = tech.settings(self.state.unlocked)
+        health_settings = health.healers(self.state.unlocked)
 
-        self._open_year()
+        self._open_year(health_settings)
         self._trade_land()
-        fed = self._feed_people()
+        fed = self._feed_people(health_settings)
         acres_planted = self._plant_grain(settings)
         self._harvest_and_rats(acres_planted, settings)
         self._research()
         self._invite_immigrants()
-        self._roll_plague_for_next_year()
+        self._bear_children(health_settings, fed)
+        self._roll_plague_for_next_year(health_settings)
         self._settle_starvation(fed)
 
-    def _open_year(self) -> None:
-        """Advance the calendar, present the report and settle the arrivals."""
+    def _open_year(self, settings: Health) -> None:
+        """Advance the calendar, present the report and settle the arrivals.
+
+        The children and the newcomers announced in the report join the city straight
+        away. The plague was decided by the roll made at the end of last year; the
+        public health in force decides how many it claims and, through the resistance
+        of the wells and the drains, whether it comes at all.
+        """
         state = self.state
         state.year += 1
         state.plague_this_year = False
@@ -197,13 +209,15 @@ class Game:
         # The report announces what happened in the year that just ended.
         self.ui.show_report(state)
 
-        # The immigrants announced in the report join the city straight away.
-        state.population += state.immigrants_this_year
+        # The children and immigrants of the report join the city straight away.
+        state.population += state.immigrants_this_year + state.born_this_year
 
         # The plague was decided by the roll made at the end of last year.
         if rules.plague_strikes(state.plague_roll):
             before = state.population
-            state.population = rules.plague_survivors(before)
+            state.population = rules.plague_survivors(
+                before, survivor_percent=settings.plague_survivor_percent
+            )
             state.plague_this_year = True
             self.ui.show_plague(before=before, after=state.population)
 
@@ -282,11 +296,15 @@ class Game:
             lambda _acres: f"Think again. You own only {state.acres} acres.",
         )
 
-    def _feed_people(self) -> int:
+    def _feed_people(self, settings: Health) -> int:
         """Spend the grain set aside to feed the city.
 
         The grain leaves the store here, but the population is left untouched
-        until :meth:`_settle_starvation` closes the year, as in the listing.
+        until :meth:`_settle_starvation` closes the year, as in the listing. The
+        public health of the year decides how many people a bushel feeds.
+
+        Args:
+            settings: The public health in force this year.
 
         Returns:
             How many people the grain could feed.
@@ -294,7 +312,9 @@ class Game:
         state = self.state
         bushels = self._ask_bushels_to_feed()
         state.bushels -= bushels
-        return rules.people_fed(bushels)
+        return rules.people_fed(
+            bushels, bushels_per_person=settings.bushels_per_person
+        )
 
     def _ask_bushels_to_feed(self) -> int:
         """Ask for grain to feed the people, repeating until it is affordable."""
@@ -347,22 +367,25 @@ class Game:
         state.bushels -= state.rats_ate_this_year
 
     def _research(self) -> None:
-        """Let the ruler pay for one farming technology, with the rule set on.
+        """Let the ruler pay for one node of the trees in play.
 
-        The question is put only when the agriculture rule set is in play, at
-        least one node is open and the grain left after the harvest covers it, so
-        a ruler who cannot afford anything is never asked a question they cannot
-        answer. The cost leaves the store at once and the node is unlocked for the
+        The question is put only when a rule set is in play, at least one node is open
+        and the grain left after the harvest covers it, so a ruler who cannot afford
+        anything is never asked a question they cannot answer. When both rule sets are
+        played, the table covers both trees, because a year holds one research moment
+        however many programmes it serves and every node on it says which programme
+        offers it. The cost leaves the store at once and the node is unlocked for the
         years that follow; answering ``None`` leaves the grain alone.
         """
         state = self.state
-        if not state.agriculture:
+        trees = tech.enabled_trees(state)
+        if not trees:
             return
-        choices = tech.offers(state.unlocked, bushels=state.bushels)
+        choices = tech.offers(trees, state.unlocked, bushels=state.bushels)
         if not choices:
             return
 
-        offered = {item.key: item for item in choices}
+        offered = {offer.node.key: offer for offer in choices}
         key = self._ask_until_accepted(
             lambda: self.ui.ask_research(state, choices),
             lambda key: key is None or key in offered,
@@ -374,9 +397,9 @@ class Game:
         if key is None:
             return
         researched = offered[key]
-        state.bushels -= researched.cost
-        state.unlocked = state.unlocked | {researched.key}
-        self.ui.show_research(researched)
+        state.bushels -= researched.node.cost
+        state.unlocked = state.unlocked | {researched.node.key}
+        self.ui.show_research(researched.node)
 
     def _invite_immigrants(self) -> None:
         """Work out how many newcomers the next year's report will announce."""
@@ -388,13 +411,30 @@ class Game:
             population=state.population,
         )
 
-    def _roll_plague_for_next_year(self) -> None:
+    def _bear_children(self, settings: Health, fed: int) -> None:
+        """Work out how many children the next year's report will announce.
+
+        Nobody is born in a year in which the city could not feed itself (see
+        :func:`hammurabi.rules.births`), and a classic game has no birth rule at all.
+        The children join the city at the start of the next year, exactly as the
+        immigrants do.
+        """
+        state = self.state
+        state.born_this_year = rules.births(
+            state.population, fed=fed, per_thousand=settings.births_per_thousand
+        )
+
+    def _roll_plague_for_next_year(self, settings: Health) -> None:
         """Roll the plague that will decide the year to come (listing 542).
 
         The listing rolls here, after the immigrants have been worked out, and
-        does so even in a year in which nobody starved.
+        does so even in a year in which nobody starved. The public health of the
+        year shifts the roll, so the wells and the drains paid for this year already
+        make the plague find fewer years to come.
         """
-        self.state.plague_roll = rules.plague_roll(self.rng)
+        self.state.plague_roll = rules.plague_roll(
+            self.rng, resistance=settings.plague_resistance
+        )
 
     def _settle_starvation(self, fed: int) -> None:
         """Tally the year's hunger and shrink the population.
@@ -433,23 +473,29 @@ class Game:
         self.state.game_over = True
         self.ui.show_impeachment(self.state)
 
-    def _closing_report(self) -> None:
+    def _closing_report(self, settings: Health) -> None:
         """Apply the report the listing opens after the last year of the term.
 
         ``270 IF Z=11 THEN 860`` sends the listing back to the top of its loop
         once the term is over, so it reports an eleventh year before it scores
-        the ruler: the last immigration joins the city (``218 P=P+I``) and the
-        plague roll made at the end of the term is resolved (``227``). Both
+        the ruler: the last children and immigrants join the city (``218 P=P+I``)
+        and the plague roll made at the end of the term is resolved (``227``). Both
         change the acres per person the verdict is built on, so both are applied
         here. The phantom report itself is not drawn - only a plague gets its
         classic message, because it changes the figures the player is about to
-        be judged on.
+        be judged on. The public health read here is the one in force at the end of
+        the term, so the last research of the reign still counts.
+
+        Args:
+            settings: The public health in force at the end of the term.
         """
         state = self.state
-        state.population += state.immigrants_this_year
+        state.population += state.immigrants_this_year + state.born_this_year
         if rules.plague_strikes(state.plague_roll):
             before = state.population
-            state.population = rules.plague_survivors(before)
+            state.population = rules.plague_survivors(
+                before, survivor_percent=settings.plague_survivor_percent
+            )
             state.plague_this_year = True
             self.ui.show_plague(before=before, after=state.population)
 

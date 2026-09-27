@@ -177,3 +177,55 @@ def test_main_plays_a_marathon_of_the_agriculture_rule_set() -> None:
 
     assert f"In your {config.MARATHON_TERM_YEARS}-year term of office" in text
     assert text.count("I beg to report to you,") == config.MARATHON_TERM_YEARS
+
+
+# --- The health rule set -----------------------------------------------------
+
+
+def test_the_health_rule_set_is_off_by_default() -> None:
+    """Without the flag the command plays the classic game, as it always did."""
+    assert parse_args([]).health is False
+    assert parse_args(["--health"]).health is True
+
+
+def test_main_plays_the_health_rule_set() -> None:
+    """The flag reaches the engine and the banner announces the rule set."""
+    text = _play("--seed", "1", "--health")
+
+    assert "This is the health rule set" in text
+    assert "Which technology do you wish to research?" in text
+
+
+def test_main_builds_the_first_measure_when_the_player_asks_for_one() -> None:
+    """A player who answers the first number builds a measure; the report names it."""
+
+    def read(question: str) -> str:
+        if "wish to research" in question:
+            return "1"
+        return careful_console_answers(question)
+
+    console, buffer = plain_console()
+    exit_code = main(["--seed", "1", "--health"], read=read, console=console)
+
+    text = render(buffer)
+    assert exit_code == EXIT_OK
+    assert "Your scholars start work on the Wells" in text
+
+
+def test_main_plays_both_rule_sets_at_once() -> None:
+    """Both flags compose: one question a year, both programmes on the table."""
+    text = _play("--seed", "1", "--agriculture", "--health")
+
+    assert "This is the agriculture and health rule set" in text
+    assert "Programme" in text, "the table must say which programme offers what"
+    assert text.count("Which technology do you wish to research?") >= 1
+
+
+def test_main_plays_a_marathon_of_the_health_rule_set() -> None:
+    """The rule set composes with ``--years``: a century of public health."""
+    text = _play(
+        "--seed", "38", "--years", str(config.MARATHON_TERM_YEARS), "--health"
+    )
+
+    assert f"In your {config.MARATHON_TERM_YEARS}-year term of office" in text
+    assert "Which technology do you wish to research?" in text
