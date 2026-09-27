@@ -72,6 +72,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--all",
+        action="store_true",
+        dest="all_rule_sets",
+        help=(
+            "play every optional rule set at once: they share the one research "
+            "moment of a year"
+        ),
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=f"%(prog)s {__version__}",
@@ -88,7 +97,9 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
 
     Returns:
         The parsed arguments, with ``years`` a whole number of years inside
-        ``1..`` :data:`~hammurabi.config.MAX_TERM_YEARS`.
+        ``1..`` :data:`~hammurabi.config.MAX_TERM_YEARS` and every optional rule
+        set of :data:`~hammurabi.config.RULE_SETS` switched on when ``--all`` was
+        given.
     """
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -101,6 +112,13 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
             f" (the classic game is {config.TERM_YEARS} years,"
             f" the marathon {config.MARATHON_TERM_YEARS})"
         )
+    if args.all_rule_sets:
+        # The master toggle of ``plan.md`` section 4: one flag for every optional
+        # rule set, so the player does not have to remember each of them. Every
+        # name in ``config.RULE_SETS`` is both the flag and the ``GameState``
+        # field that plays the set, so a set added there arrives here at once.
+        for rule_set in config.RULE_SETS:
+            setattr(args, rule_set, True)
     return args
 
 

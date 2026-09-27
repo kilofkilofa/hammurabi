@@ -215,6 +215,13 @@ With both rule sets in play the offer covers both trees — a year holds one res
 moment however many programmes it serves — and the table says which programme offers
 each node.
 
+`hammurabi --all` turns on every optional rule set at once — today the farming tree
+and the public-health measures — so the two flags need not be typed together. It
+turns on the sets named in `config.RULE_SETS` rather than a fixed pair of flags, so
+a rule set added to that list is covered by the toggle without a flag of its own. A
+bare `hammurabi` is still the classic game: nothing at all changes until a flag or
+the toggle is given.
+
 The tree holds 25 measures; all of them cost 86,070 bushels between them, a third of
 the farming ladder, because what it buys is people rather than grain. They stand in
 four branches — the water, the healers, the nursery and the food — and meet in the
@@ -475,6 +482,22 @@ twenty-five nodes each:
 - `docs/balancing.md` is re-measured rung by rung for both trees, and
   `tests/test_docs.py` still compares every row of the two §4 tables with the data
   in `tech.py` and `health.py`.
+
+### Target outcome for v1.5.1 (the master toggle)
+
+`1.5.1` changes no rule and no figure and keeps every earlier game as it is; it adds
+the one flag that saves a player from remembering the others:
+
+- `hammurabi --all` turns on every optional rule set at once — the farming tree and
+  the public-health measures today — reading the list from `config.RULE_SETS` rather
+  than from a fixed pair of flags, so a rule set added to that tuple later is covered
+  by the toggle with no change to the entry point;
+- each name of `config.RULE_SETS` is both the command-line flag and the `GameState`
+  field that plays the set, and `tests/test_main.py` holds the three together: a bare
+  command turns every set off, `--all` turns every name on, and `--all` plays exactly
+  the term of `--agriculture --health`, event for event;
+- `tests/test_docs.py` fails if a rule set of the tuple is missing from §4 or if
+  `--all` leaves `README.md`, so the next rule set cannot arrive undocumented.
 
 ## 7. Tech stack
 

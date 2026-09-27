@@ -271,6 +271,13 @@ def test_the_specification_quotes_the_agriculture_figures() -> None:
     ]
 
 
+def test_the_specification_documents_every_rule_set_flag() -> None:
+    """§4 names a flag for every optional rule set, plus the master toggle."""
+    for rule_set in config.RULE_SETS:
+        assert f"--{rule_set}" in PLAN, rule_set
+    assert "--all" in PLAN
+
+
 def test_the_readme_quotes_the_same_rules() -> None:
     """The player-facing summary and the released version cannot disagree."""
     assert _text_matches(README, r"Project status:\*\* v(\d+\.\d+\.\d+)") == [
@@ -286,7 +293,9 @@ def test_the_readme_quotes_the_same_rules() -> None:
     assert _figures(README, r"(\d+) bushel of seed sows (\d+) acres") == [
         (1, config.ACRES_PER_SEED_BUSHEL)
     ]
-    assert _number(README, r"one person can tend (\d+) acres") == config.ACRES_PER_WORKER
+    assert _number(README, r"one person can tend (\d+) acres") == (
+        config.ACRES_PER_WORKER
+    )
     assert _figures(README, r"Land costs (\d+)[–-](\d+) bushels per acre") == [
         (config.LAND_PRICE_MIN, config.LAND_PRICE_MAX)
     ]
@@ -309,6 +318,7 @@ def test_the_readme_quotes_the_same_rules() -> None:
     )
     assert "--agriculture" in README
     assert "--health" in README
+    assert "--all" in README
 
 
 def test_the_balancing_notes_quote_the_same_rules() -> None:

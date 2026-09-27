@@ -21,17 +21,19 @@ Last updated: 2026-09-27
 
 | M9 — Health rule set | **Done** | `--health` puts the optional public-health tree of `plan.md` §4 in play: `health.py` (nineteen measures, four branches, the House of Life), the `Node`/`TechTree`/`Offer` machinery shared with `tech.py`, one research moment a year covering both trees, `models.Health` + `GameState.health`/`born_this_year`, the four rules with classic defaults (`plague_survivors`, `plague_roll` resistance, `people_fed`, `births`), the children in the report and the programme column in the table; `tests/test_health.py` plus the new cases across the suite, and the measured worth of the tree in `docs/balancing.md`; released as `1.4.0` |
 | M10 — Twenty-five-node rule sets | **Done** | Both optional rule sets of `plan.md` §4 grew to twenty-five nodes each: the farming tree (`tech.py`) now carries nine field rungs, five seed rungs, five store rungs, five hands rungs and the almanac, and the health tree (`health.py`) four water rungs, six healers, seven nursery rungs, seven of food and the House of Life; the price ladders climb by about a quarter a rung (farming 263,450 bushels from 250 to 52,890; health 86,070 from 100 to 16,590); the survivor share climbs every five from the classic half to nineteen in twenty and the feeding rate falls to thirteen bushels; every arc in `docs/balancing.md` was re-measured rung by rung, and the measured plan buys the farming tree out in year 45 on the median; released as `1.5.0` |
-| M11 — The year's budget pays for research | **Done** | Research of either rule set may only be paid out of the year's **spare grain**: `rules.spare_grain` sets the food the people need (at the health in force) and the seed the land needs aside, `GameState.spare_bushels` carries the figure, the engine offers nothing above it and the UI quotes it with the question; measured over 500 marathons with a ruler who buys the costliest node first, the old gate let 326 years end below the food line, and the measured arcs of both rule sets are unchanged because their policies already spent only the surplus; ships with `1.5.0` |
+| M11 — The year's budget pays for research | **Done** | Research of either rule set may only be paid out of the year's **spare grain**: `rules.spare_grain` sets the food the people need (at the health in force) and the seed the land needs aside, `GameState.spare_bushels` carries the figure, the engine offers nothing above it and the UI quotes it with the question; measured over 500 marathons with a ruler who buys the costliest node first, the old gate let 326 years end below the food line, and the measured arcs of both rule sets are unchanged because their policies already spent only the surplus; ships with `1.5.0`, and the `--all` master toggle over `config.RULE_SETS` follows in the `1.5.1` patch |
 
-Overall: **M0–M11 complete — `1.5.0`.** The rules layer, the yearly engine, the
-`rich` terminal UI, the release metadata, the hardening and the four documented
-rule sets are all in place: `hammurabi`, `python -m hammurabi` and
+Overall: **M0–M11 complete — `1.5.0`, with the `--all` toggle of `1.5.1` ready beside
+it.** The rules layer, the yearly engine, the `rich` terminal UI, the release
+metadata, the hardening and the four documented rule sets are all in place:
+`hammurabi`, `python -m hammurabi` and
 `python main.py` play a real game (add `--years 100` for the marathon,
-`--agriculture` for the twenty-five-node farming tech tree and `--health` for the
-twenty-five public-health measures), research is paid out of the year's spare
-grain rather than out of the bread of the city, seeded batches of 500 games per
-policy guard the rules in every rule set, and `docs/plan.md`, `README.md` and
-`docs/balancing.md` are checked against the code by the suite.
+`--agriculture` for the twenty-five-node farming tech tree, `--health` for the
+twenty-five public-health measures and `--all` for every optional rule set at once),
+research is paid out of the year's spare grain rather than out of the bread of the
+city, seeded batches of 500 games per policy guard the rules in every rule set, and
+`docs/plan.md`, `README.md` and `docs/balancing.md` are checked against the code by
+the suite.
 
 ## Done
 
@@ -354,6 +356,18 @@ policy guard the rules in every rule set, and `docs/plan.md`, `README.md` and
   banner. `plan.md` §4 (the research rule and the consequence lists of both rule
   sets), §5 (M11) and §6 (the v1.5 outcome), `architecture.md`, `balancing.md`,
   `README.md` and this file follow.
+- **M11 / `1.5.1`** — `hammurabi --all` turns on every optional rule set at once, the
+  master toggle `plan.md` §4 and §6 (the v1.5.1 outcome) document. The list lives in
+  `config.RULE_SETS` (today `("agriculture", "health")`) instead of being spelled out
+  in `main.py`, so the toggle covers the farming tree and the public-health measures
+  today and any set added to that tuple later without a new branch; each name is both
+  the flag and the `GameState` field, and `tests/test_docs.py` fails if a rule set of
+  the tuple is missing from §4 or if `--all` leaves the README. The classic game is
+  untouched — the toggle only sets flags — and `tests/test_main.py` proves it: a bare
+  command turns every set off, `--all` turns every name of the tuple on, the names are
+  checked against the `GameState` fields, and `--all` plays exactly the term of
+  `--agriculture --health`, event for event. The version moves to `1.5.1`: `1.5.0` is
+  released, and the policy in `architecture.md` forbids editing a release.
 
 ## In progress
 
@@ -366,7 +380,8 @@ policy guard the rules in every rule set, and `docs/plan.md`, `README.md` and
 
 1. **M12 — conquest rule set** (next, planned as `1.6.0`): the army, one to twelve
    AI neighbours, battles, margin-scaled spoils and five-year peace treaties, behind
-   `--war` / `--opponents N` plus the `--all` master toggle; `Neighbour` in
+   `--war` / `--opponents N` — adding `"war"` to `config.RULE_SETS` is all the
+   `--all` toggle of M11 needs to cover the new set as well. `Neighbour` in
    `models.py`, the battles as pure functions in a new `war.py`, the muster and the
    neighbour turn in the yearly loop, the soldiers as an argument of the planting
    rules, and the measured worth of conquest in `docs/balancing.md`. The
@@ -450,6 +465,7 @@ policy guard the rules in every rule set, and `docs/plan.md`, `README.md` and
 | 2026-09-27 | Restate the arc tests to the measured outcome instead of tuning the ladders to the old claims | The measured tree is bought out in year 45, not 86, and its capstone is now bought by more than half the games: the claims were re-measured and the tests renamed (`test_the_plan_of_the_tree_is_the_work_of_a_reign`) rather than bending the prices to keep an obsolete figure (M10) |
 | 2026-09-27 | Release `1.5.0` | M10 changes both trees, their ladders and the measured balance, so the minor version moves; the version stays single-sourced in `hammurabi.__version__` |
 | 2026-09-27 | Research may only be paid out of the year's **spare grain** — the store less the food the people need and the seed the land needs (M11) | The old gate compared the price with the store alone, so a ruler could pay with the bread of the city: measured over 500 marathons with a costliest-node-first ruler, 326 years ended below the food line because of the purchase. Pricing the food and the seed into the budget turns the discipline `docs/balancing.md` measures into the rule of the game, and because the measured policies already spent only the surplus, both arcs stay bit for bit the same — the change needs no new constant, no extra random draw and no re-measured table |
+| 2026-09-27 | Add `--all` as the master toggle over the optional rule sets, reading `config.RULE_SETS` instead of naming the flags one by one | One flag for the whole set, so a player does not have to remember each programme, and the `--all` toggle was already planned for the conquest rule set; keeping the list in `config.RULE_SETS` means a rule set added there is covered by the same loop, with no second place in `main.py` that could fall out of step. It is released as `1.5.1` rather than edited into `1.5.0`, which is already out |
 
 ## How to update this file
 

@@ -10,8 +10,11 @@ grain while harvests, rats, immigration and plague decide your fate. Add
 `--agriculture` and you may also pay for the farming technologies of Sumeria;
 add `--health` and you may pay for its public-health measures instead.
 
-> **Project status:** v1.5.0 — the full target outcome of
-> [`docs/plan.md`](docs/plan.md) §6 is met. M10 grew both optional rule sets to
+> **Project status:** v1.5.1 — the full target outcome of
+> [`docs/plan.md`](docs/plan.md) §6 is met. M11 made research payable only out of
+> the year's spare grain — the store less the food the people need and the seed the
+> land needs — and `1.5.1` adds `--all`, the one flag that turns on every optional
+> rule set. M10 grew both optional rule sets to
 > twenty-five nodes each: the farming tree spans a quarter-step ladder from 250 to
 > 52,890 bushels and the public-health tree from 100 to 16,590, and the measured
 > notes of [`docs/balancing.md`](docs/balancing.md) were re-measured rung by rung.
@@ -70,6 +73,7 @@ hammurabi --seed 42   # replay a game: the same seed brings the same events
 hammurabi --years 100 # the marathon: the same rules for a century
 hammurabi --agriculture # the farming tech tree: research out of the year's spare grain
 hammurabi --health    # the public-health tree: the same research, medicine instead
+hammurabi --all       # every optional rule set at once: both trees, one question a year
 hammurabi --version   # print the version
 ```
 
@@ -123,7 +127,9 @@ measure of every branch at once. This tree buys people, not grain, so it will no
 save a city from famine on its own — the measured arc of a healer's plan is in
 [`docs/balancing.md`](docs/balancing.md). Ask for both rule sets and the one research
 moment a year serves both trees, as long as you can choose; either way the price has
-to fit in what the year leaves over, and both questions quote that figure.
+to fit in what the year leaves over, and both questions quote that figure. `--all` is
+the shortcut for both trees at once — and for whichever rule set is added next, since
+it turns on every set named in `config.RULE_SETS`.
 
 A line that is not a whole number, or an amount the rules cannot accept, is
 explained and asked for again. When the term ends the game judges you on the

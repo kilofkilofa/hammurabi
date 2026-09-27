@@ -132,6 +132,16 @@ MAX_TERM_YEARS = 1000
 # the engine, and a CPU, forever.
 MAX_ANSWER_ATTEMPTS = 100
 
+# --- Optional rule sets (``--all``) ------------------------------------------
+
+#: The optional rule sets of ``plan.md`` section 4, in the order they are turned on:
+#: the farming technologies of ``--agriculture`` and the public health of ``--health``.
+#: ``hammurabi --all`` turns on every set named here, and each name is both the
+#: command-line flag and the ``GameState`` field that plays it, so a rule set added
+#: to this tuple is covered by the master toggle without a branch of its own.
+RULE_SETS: tuple[str, ...] = ("agriculture", "health")
+
+
 # --- Agriculture rule set (``--agriculture``) --------------------------------
 
 # The optional rule set of ``plan.md`` section 4: the farming technologies of

@@ -1,20 +1,23 @@
 """Smoke tests for the command-line entry point.
 
 The tests pin the two ways a run can end without a traceback - a finished term
-and an input that dries up - and check that ``--seed`` reaches the engine. They
-also run ``python -m hammurabi`` in a subprocess with its input closed, which is
-how the entry points are verified without an interactive session.
+and an input that dries up - and check that ``--seed`` reaches the engine and
+that ``--all`` turns on every optional rule set of ``config.RULE_SETS`` at once.
+They also run ``python -m hammurabi`` in a subprocess with its input closed, which
+is how the entry points are verified without an interactive session.
 """
 
 from __future__ import annotations
 
 import subprocess
 import sys
+from dataclasses import fields
 
 import pytest
 
 from hammurabi import __version__, config
 from hammurabi.main import EXIT_OK, EXIT_USAGE, main, parse_args
+from hammurabi.models import GameState
 from tests.support import careful_console_answers, plain_console, render
 
 
@@ -229,3 +232,41 @@ def test_main_plays_a_marathon_of_the_health_rule_set() -> None:
 
     assert f"In your {config.MARATHON_TERM_YEARS}-year term of office" in text
     assert "Which technology do you wish to research?" in text
+
+
+# --- The master toggle -------------------------------------------------------
+
+
+def test_the_classic_game_stays_the_default_without_the_toggle() -> None:
+    """A bare command turns every optional rule set off, as it always did."""
+    args = parse_args([])
+
+    assert args.all_rule_sets is False
+    for rule_set in config.RULE_SETS:
+        assert getattr(args, rule_set) is False, rule_set
+
+
+def test_the_master_toggle_turns_on_every_rule_set() -> None:
+    """``--all`` is one flag for the whole documented list of rule sets."""
+    args = parse_args(["--all"])
+
+    assert args.all_rule_sets is True
+    for rule_set in config.RULE_SETS:
+        assert getattr(args, rule_set) is True, rule_set
+
+
+def test_every_rule_set_has_a_flag_and_a_state_field_of_the_same_name() -> None:
+    """The toggle can only reach the engine while the names agree everywhere."""
+    state_fields = {field.name for field in fields(GameState)}
+    parsed = parse_args([])
+
+    for rule_set in config.RULE_SETS:
+        assert rule_set in state_fields, rule_set
+        assert hasattr(parsed, rule_set), rule_set
+
+
+def test_main_plays_every_rule_set_with_one_flag() -> None:
+    """The toggle plays exactly the term the two flags play, event for event."""
+    assert _play("--seed", "1", "--all") == _play(
+        "--seed", "1", "--agriculture", "--health"
+    )

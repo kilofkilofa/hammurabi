@@ -79,7 +79,7 @@ hammurabi/
 | `random_source.py` | The RNG seam: a `RandomSource` protocol (`random`, `randint`) plus the `SeededRandom` implementation backed by `random.Random`. Tests inject a scripted stub. | — |
 | `game.py` | `Game` engine: owns a `GameState`, runs the yearly loop, applies rules, asks for one research a year when a rule set is on (the offer covering every tree in play, paid out of the year's spare grain, never the food of the city or the seed of its fields), updates statistics, decides game over. Also defines the `UI` protocol that the engine consumes. | `config`, `models`, `rules`, `tech`, `health` |
 | `ui.py` | `ConsoleUI`: renders reports via `rich`, asks the player for the yearly numbers and for a node when the trees offer one, prints error, impeachment and end-of-term messages. Implements the `UI` protocol from `game.py`; the engine validates every answer, so no rule knowledge ends up here. | `rich`, `game`, `models`, `tech` |
-| `main.py` | Entry point: parse args (`--seed`, `--years`, `--agriculture`, `--health`), construct the starting state, RNG and UI, run `Game`. | `game`, `models`, `ui`, `random_source` |
+| `main.py` | Entry point: parse args (`--seed`, `--years`, `--agriculture`, `--health`, `--all`), construct the starting state, RNG and UI, run `Game`. | `game`, `models`, `ui`, `random_source` |
 | `__main__.py` | Allows `python -m hammurabi`. | `main` |
 
 The `UI` protocol lives in `game.py` rather than `ui.py` because the engine owns
@@ -201,7 +201,7 @@ lines the UI raises `RuntimeError` too.
 | Integration | A seeded game played to completion produces a stable verdict; a whole term played through the real console UI with a scripted player | `tests/test_game.py`, `tests/test_ui.py` |
 | Simulation | Seeded batches of whole games per policy, playing the classic rule set, the agriculture one and the health one: the cross-game invariants (grain never negative, the store balances with the research included, population only rises through immigrants and the births of a fed year, a verdict is always reached, years never exceed the term), the arcs of both trees over a marathon batch (the year each node is bought, the median completion year of the farming tree, the deepest measure a healer ever reaches) and the figures recorded in `docs/balancing.md` | `tests/test_simulation.py`, `tests/policies.py` |
 | Documentation | Every figure quoted in `docs/plan.md`, `README.md` and `docs/balancing.md` is compared with the constant it documents, so a rule change fails the build | `tests/test_docs.py` |
-| Smoke | `main()` plays a scripted game, stops cleanly when the input ends, forwards `--seed` and `--years`, refuses a term it cannot play; `python -m hammurabi` runs with a closed stdin | `tests/test_main.py` |
+| Smoke | `main()` plays a scripted game, stops cleanly when the input ends, forwards `--seed` and `--years`, turns every rule set of `config.RULE_SETS` on with `--all`, refuses a term it cannot play; `python -m hammurabi` runs with a closed stdin | `tests/test_main.py` |
 | Packaging | The installed distribution matches `__version__`, the console script points at `hammurabi.main:main`, and `pyproject.toml` declares the release metadata with no literal version of its own | `tests/test_packaging.py` |
 
 Guidelines:
@@ -292,10 +292,11 @@ of leaving a stray process spinning a core.
   `1.0.0` marks that outcome being met (the end of M5), `1.1.0` adds the
   documented term choice (M6), `1.2.0` the optional agriculture rule set (M7),
   `1.3.0` the fifteen-node tree whose price ladder spreads the programme over a
-  lifetime (M8), `1.4.0` the optional public-health rule set (M9) and `1.5.0` the
+  lifetime (M8), `1.4.0` the optional public-health rule set (M9), `1.5.0` the
   twenty-five-node trees whose quarter-step ladders spread the programme over a
-  reign (M10). Any later change needs a new patch or minor version, never an
-  edit of an existing release.
+  reign (M10) and `1.5.1` the `--all` master toggle over the optional rule sets (a
+  patch: it adds a flag, not a rule). Any later change needs a new patch or minor
+  version, never an edit of an existing release.
 - Nothing built is committed: `.venv/`, `*.egg-info/`, `dist/` and `build/` are
   ignored and recreated by `pip install -e ".[dev]"`.
 
