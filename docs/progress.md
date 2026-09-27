@@ -20,20 +20,25 @@ Last updated: 2026-09-27
 | M8 — A tree that takes a lifetime | **Done** | The tree grew to fifteen nodes in four branches and a capstone, every rung a figure the ruler sees (acres per bushel of seed, bushels per acre, acres per person, the rats' share); the prices climb by about half again a rung, so the measured plan buys the capstone in year 86 on the median and 190 of 500 marathons buy the whole tree; the arc is tabulated rung by rung in `docs/balancing.md` and pinned by `test_the_plan_of_the_tree_takes_a_lifetime`; released as `1.3.0` |
 
 | M9 — Health rule set | **Done** | `--health` puts the optional public-health tree of `plan.md` §4 in play: `health.py` (nineteen measures, four branches, the House of Life), the `Node`/`TechTree`/`Offer` machinery shared with `tech.py`, one research moment a year covering both trees, `models.Health` + `GameState.health`/`born_this_year`, the four rules with classic defaults (`plague_survivors`, `plague_roll` resistance, `people_fed`, `births`), the children in the report and the programme column in the table; `tests/test_health.py` plus the new cases across the suite, and the measured worth of the tree in `docs/balancing.md`; released as `1.4.0` |
-| M10 — Twenty-five-node rule sets | **Done** | Both optional rule sets of `plan.md` §4 grew to twenty-five nodes each: the farming tree (`tech.py`) now carries nine field rungs, five seed rungs, five store rungs, five hands rungs and the almanac, and the health tree (`health.py`) four water rungs, six healers, seven nursery rungs, seven of food and the House of Life; the price ladders climb by about a quarter a rung (farming 263,450 bushels from 250 to 52,890; health 86,070 from 100 to 16,590); the survivor share climbs every five from the classic half to nineteen in twenty and the feeding rate falls to thirteen bushels; every arc in `docs/balancing.md` was re-measured rung by rung, and the measured plan buys the farming tree out in year 45 on the median; released as `1.5.0` |
+| M10 — Twenty-five-node rule sets | **Done** | Both optional rule sets of `plan.md` §4 grew to twenty-five nodes each: the farming tree (`tech.py`) now carries nine field rungs, five seed rungs, five store rungs, five hands rungs and the almanac, and the health tree (`health.py`) four water rungs, six healers, seven nursery rungs, seven of food and the House of Life; the price ladders climb by about a quarter a rung (farming 263,450 bushels from 250 to 52,890; health 86,070 from 100 to 16,590); the survivor share climbs every five from the classic half to nineteen in twenty and the feeding rate falls to thirteen bushels; every arc in `docs/balancing.md` was re-measured rung by rung, and the measured plan buys the farming tree out in year 49 on the median (45 as M10 itself measured it, before the `1.5.2` reorder moved the figure); released as `1.5.0` |
 | M11 — The year's budget pays for research | **Done** | Research of either rule set may only be paid out of the year's **spare grain**: `rules.spare_grain` sets the food the people need (at the health in force) and the seed the land needs aside, `GameState.spare_bushels` carries the figure, the engine offers nothing above it and the UI quotes it with the question; measured over 500 marathons with a ruler who buys the costliest node first, the old gate let 326 years end below the food line, and the measured arcs of both rule sets are unchanged because their policies already spent only the surplus; ships with `1.5.0`, and the `--all` master toggle over `config.RULE_SETS` follows in the `1.5.1` patch |
+| `1.5.2` — The research question opens the year | **Done** | The research question is now put at the top of the year, straight after the report and the plague (`plan.md` §4 step 3) and from the second year of a term on (`config.FIRST_RESEARCH_YEAR`), so the budget is the store the report has just shown — grain the granary really holds — and never the surplus the trade and the harvest of that year are about to earn; the crop of the year is reported where it lands instead (`ui.show_harvest`, between the sowing and the newcomers, whenever a tree is in play), so the grain the next question is paid from is printed by the year that earned it; a year whose spare grain pays for no node reports that empty budget in one line (`ui.show_no_research`) instead of falling silent, and the banner says the question opens from the second year on, so a rule set is never invisible and no first-year question is promised; the classic game has no research, no crop and no empty-budget line, and keeps the vintage transcript bit for bit, and `test_the_store_the_research_question_quotes_adds_up` pins the arithmetic of an opening year (8000 store with 112 people and 1000 acres: 8000 − 2240 food − 333 seed = 5427 may be invested, and that same year ends at 11960), while the arcs of both rule sets were re-measured for the moved budget (the farming tree is bought out in year 49 on the median, by 282 of 500 marathons, in `docs/balancing.md`) |
 
-Overall: **M0–M11 complete — `1.5.0`, with the `--all` toggle of `1.5.1` ready beside
-it.** The rules layer, the yearly engine, the `rich` terminal UI, the release
-metadata, the hardening and the four documented rule sets are all in place:
+Overall: **M0–M11 complete — `1.5.2`, with the moved research question of the patch on
+top of the `--all` toggle.** The rules layer, the yearly engine, the `rich` terminal UI,
+the release metadata, the hardening and the four documented rule sets are all in place:
 `hammurabi`, `python -m hammurabi` and
 `python main.py` play a real game (add `--years 100` for the marathon,
 `--agriculture` for the twenty-five-node farming tech tree, `--health` for the
 twenty-five public-health measures and `--all` for every optional rule set at once),
 research is paid out of the year's spare grain rather than out of the bread of the
-city, seeded batches of 500 games per policy guard the rules in every rule set, and
-`docs/plan.md`, `README.md` and `docs/balancing.md` are checked against the code by
-the suite.
+city, the research question opens the year — never the first year of a term, so the
+vintage opening is untouched — and never falls silent: a rule-set year shows the
+table of what its budget can pay for, or the line that says the store leaves nothing
+over — and the crop the next budget comes from is reported
+where it lands, seeded batches of 500 games per policy guard the rules in every rule
+set, and `docs/plan.md`, `README.md` and `docs/balancing.md` are checked against the
+code by the suite.
 
 ## Done
 
@@ -311,13 +316,18 @@ the suite.
   them; the two tables are still compared row by row with the trees by
   `tests/test_docs.py`.
 - **M10** — `docs/balancing.md` was re-measured rung by rung for both trees. The
-  farmer completes 296 decades (was 277) and 262 centuries, buys all twenty-five
-  rungs in 262 games of 500 with a median completion year of 45 (mean 45.8, range
-  40-56), and 5,726 of the 7,296 rungs ever bought fall in the first twenty years.
-  The healer's arc now reaches the smokehouses — the nineteenth of the twenty-five,
-  in 24 games — and a fully built health tree is impeached in the twelfth year on
-  the median. The splitter buys 13.3 measures for every 9.5 rungs, and for the first
-  time one of these policies reaches the House of Life (80 games of 500).
+  farmer completes 282 decades and 282 centuries, buys all twenty-five rungs in 282
+  games of 500 with a median completion year of 49 (mean 49.2, range 43-61), and
+  5,199 of the 7,131 rungs ever bought fall in the first twenty years. The healer's
+  arc reaches the smokehouses — the nineteenth of the twenty-five, in 25 games — and
+  a fully built health tree is impeached in the twelfth year on the median. The
+  splitter buys 12.7 measures for every 8.7 rungs, and for the first time one of
+  these policies reaches the House of Life (37 games of 500). These are the counts of
+  the re-measurement the `1.5.2` reorder carried out (the question opens the year, so
+  the budget is drawn before the trade and the harvest of that year); as M10 itself
+  first measured them they read 296 decades, 262 centuries in year 45 on the median,
+  5,726 of 7,296 rungs in the first twenty years, the smokehouses in 24 games and the
+  House of Life in 80.
 - **M10** — the arc tests were renamed and re-stated to that measured reality:
   `test_the_plan_of_the_tree_is_the_work_of_a_reign` replaces
   `test_the_plan_of_the_tree_takes_a_lifetime`, the capstone is now bought by more
@@ -368,6 +378,46 @@ the suite.
   checked against the `GameState` fields, and `--all` plays exactly the term of
   `--agriculture --health`, event for event. The version moves to `1.5.1`: `1.5.0` is
   released, and the policy in `architecture.md` forbids editing a release.
+- **`1.5.2`** — the research question opens the year, and the crop is reported where
+  it lands. A ruler was asked what to research against a budget drawn from a store
+  the granary would only hold at the end of the year: the harvest landed silently
+  between the sowing and the question, so the figure on offer could not be checked
+  against anything the report had shown, and the grain it quoted was already spent on
+  the trade, the bread and the seed of the same year. The engine now puts the question
+  in step 3 of `plan.md` §4 — straight after the report and the plague, before the
+  land price is rolled and before the trade, the feeding and the sowing — and only
+  from the second year of a term on (`config.FIRST_RESEARCH_YEAR`), so the vintage
+  opening year is untouched and the classic game, which has no research, is never
+  asked at all; the budget is `rules.spare_grain` at that moment, so the figure on
+  offer is grain the granary really holds. The crop of the year is reported where it
+  lands instead: `ui.show_harvest`, called between the sowing and the newcomers and
+  only when a tree is in play, prints the harvest, the rats and the store the crop
+  leaves, so the grain the following year's question is paid from is printed by the
+  year that earned it, while a game without a rule set reports no crop and keeps the
+  vintage transcript (asserted from both sides in `test_game.py`, with the lines
+  pinned by `tests/test_ui.py`). A year whose spare grain pays for no node is no longer
+  silent: the engine calls `ui.show_no_research`, which prints the store it measured
+  the budget from and says the food of the people and the seed of the fields are set
+  aside first, so a rule-set year always shows the research moment — as the table of
+  what the budget can pay for, or as the line that says there is nothing to pay with —
+  and a ruler can tell a programme they switched on from one that is not being played
+  (the maintainer reported exactly that confusion after `1.5.2` came out). The banner
+  says the question opens from the second year on, because the vintage opening year
+  puts none; `--all` turns on the sets of `config.RULE_SETS`, today the farming and the
+  health tree, while the army of the conquest rule set is M12 and still ahead.
+  `test_the_store_the_research_question_quotes_adds_up`
+  pins the arithmetic from both sides: the granary opens at 8000 bushels with 112
+  people, who need 2240 bushels of bread, and the 1000 acres need 333 bushels of seed,
+  so the year may invest `8000 - 2240 - 333 = 5427` and the question quotes the 8000
+  the report showed — never the 11960 the same year ends at. The measured arcs of both
+  rule sets moved with the budget, since a budget drawn at the top of the year is
+  drawn before the trade and the harvest of that year: the classic batches of
+  `docs/balancing.md` are exactly the ones they were, and the agriculture, health and
+  split batches were re-run and re-stated (the farming tree is bought out in year 49 on
+  the median, by 282 of 500 marathons). `plan.md` §4 (the turn sequence), §5 and §6 (the
+  v1.5.2 outcome), `architecture.md` (the yearly skeleton, the engine's module row and
+  the version policy), `README.md` and this file follow. The version moves to `1.5.2`:
+  `1.5.1` is released, and the policy in `architecture.md` forbids editing a release.
 
 ## In progress
 
@@ -385,8 +435,9 @@ the suite.
    `models.py`, the battles as pure functions in a new `war.py`, the muster and the
    neighbour turn in the yearly loop, the soldiers as an argument of the planting
    rules, and the measured worth of conquest in `docs/balancing.md`. The
-   research-budget rule of M11 ships with `1.5.0`, so the war rule set is the next
-   minor version; `plan.md` §3's non-goal on AI opponents is relaxed for it first.
+   research-budget rule of M11 shipped with `1.5.0` and the crop report with
+   `1.5.2`, so the war rule set is the next minor version; `plan.md` §3's non-goal on
+   AI opponents is relaxed for it first.
 2. **M4** — add `[project.urls]` once the project has a public repository, and
    name the copyright holder in `LICENSE`.
 3. Keep the documents and the engine in step: `tests/test_docs.py` and
@@ -466,6 +517,11 @@ the suite.
 | 2026-09-27 | Release `1.5.0` | M10 changes both trees, their ladders and the measured balance, so the minor version moves; the version stays single-sourced in `hammurabi.__version__` |
 | 2026-09-27 | Research may only be paid out of the year's **spare grain** — the store less the food the people need and the seed the land needs (M11) | The old gate compared the price with the store alone, so a ruler could pay with the bread of the city: measured over 500 marathons with a costliest-node-first ruler, 326 years ended below the food line because of the purchase. Pricing the food and the seed into the budget turns the discipline `docs/balancing.md` measures into the rule of the game, and because the measured policies already spent only the surplus, both arcs stay bit for bit the same — the change needs no new constant, no extra random draw and no re-measured table |
 | 2026-09-27 | Add `--all` as the master toggle over the optional rule sets, reading `config.RULE_SETS` instead of naming the flags one by one | One flag for the whole set, so a player does not have to remember each programme, and the `--all` toggle was already planned for the conquest rule set; keeping the list in `config.RULE_SETS` means a rule set added there is covered by the same loop, with no second place in `main.py` that could fall out of step. It is released as `1.5.1` rather than edited into `1.5.0`, which is already out |
+
+| 2026-09-27 | Put the research question at the **top** of the year (`1.5.2`), and report the crop of the year where it lands | The question quoted a store the granary would only hold at the end of the year — the harvest landed silently between the report and the question — so the figure on offer could not be reconciled with any line on screen. Opening the year with the question makes the budget the store the report has just printed, less the food the people need and the seed the land needs (the spare grain of M11), and the crop then belongs where it lands: reported after the sowing, with the rats and the grain left behind, so the next year's budget can be checked against the granary. This supersedes the same day's decision to report the crop *before* the question, which put a correct figure next to a question that then spent a different one. The question is skipped in the first year of a term, which leaves the vintage opening year and the whole classic game untouched |
+| 2026-09-27 | Re-measure the arcs of both rule sets for the moved budget instead of re-tuning the ladders | No price, no rate and no random draw changed, so the tables moved because the year is spent in a different order: the classic batches are bit for bit the ones they were, while the agriculture, health and split batches were re-run and re-stated in `docs/balancing.md` (the farming tree is bought out in year 49 on the median, by 282 of 500 marathons) |
+| 2026-09-27 | Release the moved question and the crop report as `1.5.2` rather than editing them into `1.5.1` | `1.5.1` is already released and the policy in `architecture.md` forbids editing a release; the change moves an existing question and adds a report line without touching a rule, so the patch version moves |
+| 2026-09-27 | Report an empty research budget in one line (`ui.show_no_research`) and say in the banner that the question opens the second year on, rather than leaving the rule sets silent | Reported by the maintainer playing `--all` on `1.5.2`: "I do not see the option to develop agriculture or health." The engine was right — the vintage opening year asks nothing (`config.FIRST_RESEARCH_YEAR`) and the question is put only when the year's spare grain can afford a node, which 158 of 500 careful ten-year games never reach — but the player could not tell a programme they had switched on from one that was not being played at all. The two gaps were that a year with an empty budget printed nothing, and that the banner promised a question "each year" while the first year never puts one. Neither change touches a rule, a rate, a random draw or a measured figure: the question is still put only when the surplus covers a rung, and the classic transcript gains neither a line nor a paragraph. The army the report also expected is **not** in this version — conquest is M12 and planned as `1.6.0`, and `--all` turns on every set named in `config.RULE_SETS`, which today holds the farming and the health tree only |
 
 ## How to update this file
 

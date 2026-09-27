@@ -120,10 +120,13 @@ def _ruleset_note(state: GameState) -> str:
     """Return the sentence announcing the rule sets, for the intro panel.
 
     The classic game needs no note, because it asks the four vintage questions; each
-    rule set in play adds a fifth and says so before the first year. The size of a
-    tree is read from the tree itself, so the banner cannot fall behind a deeper one,
-    and when both rule sets are played the note says that the one question a year
-    covers both programmes.
+    rule set in play adds a fifth and says so before the first year, and the note
+    says that the fifth opens the second year on, because the vintage opening year is
+    left untouched (``config.FIRST_RESEARCH_YEAR``): a banner promising a question
+    for "each year" would promise one the first year never puts. The size of a tree is
+    read from the tree itself, so the banner cannot fall behind a deeper one, and when
+    both rule sets are played the note says that the one question a year covers both
+    programmes.
     """
     trees = tech.enabled_trees(state)
     if not trees:
@@ -131,23 +134,23 @@ def _ruleset_note(state: GameState) -> str:
     if len(trees) == 1:
         tree = trees[0]
         return (
-            f"\n\nThis is the {tree.key} rule set: each year you may also pay for one "
-            f"of the {tree.size} {RULESET_SUBJECTS[tree.key]} out of the grain left "
-            "over once the people are fed and the fields are sown. The later ones cost "
-            "what many harvests leave over, so the whole programme is the work of a "
-            "lifetime."
+            f"\n\nThis is the {tree.key} rule set: each year from the second one on "
+            f"you may also pay for one of the {tree.size} "
+            f"{RULESET_SUBJECTS[tree.key]} out of the grain left over once the "
+            "people are fed and the fields are sown. The later ones cost what many "
+            "harvests leave over, so the whole programme is the work of a lifetime."
         )
     named = " and ".join(tree.key for tree in trees)
     sized = " and ".join(
         f"the {tree.size} {RULESET_SUBJECTS[tree.key]}" for tree in trees
     )
     return (
-        f"\n\nThis is the {named} rule set: each year you may also pay for one of "
-        f"{sized} out of the grain left over once the people are fed and the fields "
-        "are sown, because a year holds one research moment however many programmes it "
-        "serves. The later nodes cost what many harvests leave over, so a whole "
-        "programme is the work of a lifetime and mastering both takes the longest "
-        "reign of all."
+        f"\n\nThis is the {named} rule set: each year from the second one on you "
+        f"may also pay for one of {sized} out of the grain left over once the people "
+        "are fed and the fields are sown, because a year holds one research moment "
+        "however many programmes it serves. The later nodes cost what many harvests "
+        "leave over, so a whole programme is the work of a lifetime and mastering "
+        "both takes the longest reign of all."
     )
 
 
@@ -258,6 +261,25 @@ class ConsoleUI:
         table.add_row("Grain in store", f"{state.bushels} bushels")
         self.console.print(table)
 
+    def show_harvest(
+        self, state: GameState, *, planted_acres: int, harvested: int
+    ) -> None:
+        """Report the year's crop from ``planted_acres`` and the grain it leaves.
+
+        A rule set reports the crop where it lands, between the sowing and the
+        newcomers, so the ruler can see what the fields produced and what the granary
+        holds after the rats. Only a rule set reports it; the classic game keeps the
+        vintage silence (see :meth:`hammurabi.game.Game._harvest_and_rats`).
+        """
+        self.console.print(
+            f"Your {planted_acres} acres yielded {harvested} bushels at "
+            f"{state.yield_per_acre} bushels per acre; the rats ate "
+            f"{state.rats_ate_this_year} bushels."
+        )
+        self.console.print(
+            f"Grain in store after the harvest: {state.bushels} bushels."
+        )
+
     def show_land_price(self, price: int) -> None:
         """Report the price fixed for this year's land trade."""
         self.console.print(f"Land is trading at {price} bushels per acre.")
@@ -267,6 +289,21 @@ class ConsoleUI:
         self.console.print(
             f"Your scholars start work on the {researched.name} "
             f"({researched.effect}); it shows in the years to come."
+        )
+
+    def show_no_research(self, state: GameState) -> None:
+        """Report that the year's spare grain pays for no node of any tree.
+
+        The engine puts the question only when its budget covers a node
+        (``docs/plan.md`` section 4), so a year whose granary is pledged to the bread
+        of the city and the seed of its fields would show the ruler nothing at all of
+        the programmes they switched on. The line names the store the budget was
+        measured from, which is the figure the opening report has just shown.
+        """
+        self.console.print(
+            f"Your store of {state.bushels} bushels leaves nothing over for research "
+            "this year: the food your people need and the seed your fields need are "
+            "set aside first."
         )
 
     def show_error(self, message: str) -> None:

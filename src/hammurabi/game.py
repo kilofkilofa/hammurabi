@@ -64,6 +64,16 @@ class UI(Protocol):
     def show_status(self, state: GameState) -> None:
         """Report population, land, last harvest, rats and grain in store."""
 
+    def show_harvest(
+        self, state: GameState, *, planted_acres: int, harvested: int
+    ) -> None:
+        """Report the year's crop, its rats and the grain the crop leaves in store.
+
+        Asked only when a rule set is in play — a game with a rule set reports its
+        crop, while the classic game keeps the vintage silence — and asked where the
+        crop lands, between the sowing and the newcomers.
+        """
+
     def show_land_price(self, price: int) -> None:
         """Report this year's land price in bushels per acre."""
 
@@ -91,6 +101,14 @@ class UI(Protocol):
 
     def show_research(self, researched: tech.Node) -> None:
         """Report that the ruler has started to research ``researched``."""
+
+    def show_no_research(self, state: GameState) -> None:
+        """Report that the year's spare grain pays for no node at all.
+
+        Called instead of :meth:`ask_research` when a rule set is in play and the
+        budget cannot cover the cheapest rung, so that a year with nothing to
+        invest says so rather than falling silent.
+        """
 
     def show_error(self, message: str) -> None:
         """Explain why the last answer was rejected; the engine asks again."""
@@ -166,10 +184,12 @@ class Game:
         The steps follow the order the original listing documents: open the year with
         its report, trade land, feed the people, sow and harvest, let the rats and the
         newcomers in, roll the plague for the year to come and finally tally the
-        hunger. With a rule set in play the ruler may also start one research between
-        the harvest and the newcomers, because research is paid out of the grain the
-        year actually produced — but only out of what is spare once the food of the
-        city and the seed of its fields are set aside.
+        hunger. With a rule set in play the year also opens with one research
+        question, put between the report and the land trade so that the budget is the
+        grain the granary really holds at that moment: the store the report has just
+        shown, less the food the people need and the seed the land needs. A ruler who
+        cannot afford anything is not asked at all, and the first year of a term is
+        never asked, so a rule set leaves the vintage opening year untouched.
 
         The population is only reduced in that last step, exactly as in the listing
         (``555 P=C``). Sowing, the immigration formula and the births the next report
@@ -181,17 +201,17 @@ class Game:
         if self.state.game_over or self.state.year >= self.state.term_years:
             raise RuntimeError("cannot play another year: the term is over")
 
-        # The technology in force this year: research started in an earlier year, so
-        # a node unlocked now only pays off from the next one.
+        # The technology in force this year is read before the question is put, so a
+        # node bought now only pays off from the next year's fields.
         settings = tech.settings(self.state.unlocked)
         health_settings = health.healers(self.state.unlocked)
 
         self._open_year(health_settings)
+        self._research(settings, health_settings)
         self._trade_land()
         fed = self._feed_people(health_settings)
         acres_planted = self._plant_grain(settings)
         self._harvest_and_rats(acres_planted, settings)
-        self._research(settings, health_settings)
         self._invite_immigrants()
         self._bear_children(health_settings, fed)
         self._roll_plague_for_next_year(health_settings)
@@ -358,7 +378,10 @@ class Game:
         The rats raid what is left in the store after feeding and sowing, but
         before the new harvest is added, exactly as in the original game. The
         farming technology of the year raises the harvest and shrinks the rats'
-        share; neither adds a random draw.
+        share; neither adds a random draw. A rule set reports the crop where it
+        lands, so the ruler can see what the fields produced and what the granary
+        is left with; the classic game reports no crop and keeps the vintage
+        transcript (``plan.md`` section 4).
         """
         state = self.state
         store_before_harvest = state.bushels
@@ -368,24 +391,44 @@ class Game:
         )
         state.bushels += rules.harvest(acres_planted, state.yield_per_acre)
         state.bushels -= state.rats_ate_this_year
+        if tech.enabled_trees(state):
+            self.ui.show_harvest(
+                state,
+                planted_acres=acres_planted,
+                harvested=rules.harvest(acres_planted, state.yield_per_acre),
+            )
 
     def _research(self, settings: Agriculture, health_settings: Health) -> None:
         """Let the ruler pay for one node of the trees in play out of the surplus.
 
+        The budget is the store the opening report has just shown, less the food the
+        people need at the public health in force and the seed the land needs for the
+        season to come. The question is put before the land trade, the feeding and the
+        sowing, so nothing has been spent yet and the figure the answer is drawn from
+        is grain the granary really holds; a ruler who trades land afterwards can still
+        afford the food and the seed, because the food and the seed of the land they
+        already own are exactly what the budget set aside first.
+
         The price must fit in the **spare grain of the year**, not in the store: the
-        food the people need at the public health in force and the seed the land
-        needs for the next sowing are set aside first, so the bread of the city and
-        the seed of its fields can never be invested. That figure is written to
-        ``state.spare_bushels``, which is what the question reports; the question is
-        put only when a rule set is in play, at least one node is open and the
-        surplus covers it, so a ruler who cannot afford anything is never asked a
-        question they cannot answer. When both rule sets are played, the table
-        covers both trees, because a year holds one research moment however many
-        programmes it serves and every node on it says which programme offers it.
-        The cost leaves the store at once and the node is unlocked for the years
-        that follow; answering ``None`` leaves the grain alone.
+        food the people need and the seed the land needs are set aside first, so the
+        bread of the city and the seed of its fields can never be invested. That figure
+        is written to ``state.spare_bushels``, which is what the question reports; the
+        question is put only when a rule set is in play, at least one node is open and
+        the surplus covers it, so a ruler who cannot afford anything is never asked a
+        question they cannot answer — the year reports the empty budget in one line
+        instead (:meth:`UI.show_no_research`), because a programme that showed neither
+        a table nor a line would look like a programme that was not being played. The
+        classic opening year is never asked either, so
+        a rule set leaves year 1 exactly as the listing has it. When both rule sets are
+        played, the table covers both trees, because a year holds one research moment
+        however many programmes it serves and every node on it says which programme
+        offers it. The cost leaves the store at once and the node is unlocked for the
+        years that follow, since this year's figures were read before the question;
+        answering ``None`` leaves the grain alone.
         """
         state = self.state
+        if state.year < config.FIRST_RESEARCH_YEAR:
+            return
         trees = tech.enabled_trees(state)
         if not trees:
             return
@@ -399,6 +442,11 @@ class Game:
         )
         choices = tech.offers(trees, state.unlocked, bushels=state.spare_bushels)
         if not choices:
+            # The bread of the city and the seed of its fields come first, so a year
+            # that can pay for no rung is not asked about one. It is still reported:
+            # a rule set that answered with silence would look to the ruler like a
+            # rule set that was not being played at all.
+            self.ui.show_no_research(state)
             return
 
         offered = {offer.node.key: offer for offer in choices}

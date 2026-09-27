@@ -10,11 +10,14 @@ grain while harvests, rats, immigration and plague decide your fate. Add
 `--agriculture` and you may also pay for the farming technologies of Sumeria;
 add `--health` and you may pay for its public-health measures instead.
 
-> **Project status:** v1.5.1 — the full target outcome of
+> **Project status:** v1.5.2 — the full target outcome of
 > [`docs/plan.md`](docs/plan.md) §6 is met. M11 made research payable only out of
 > the year's spare grain — the store less the food the people need and the seed the
 > land needs — and `1.5.1` adds `--all`, the one flag that turns on every optional
-> rule set. M10 grew both optional rule sets to
+> rule set, while `1.5.2` opens each year (but never the first) with that question and
+> reports the crop where it lands, so the grain on offer is grain the granary has just
+> shown. M10 grew both optional
+> rule sets to
 > twenty-five nodes each: the farming tree spans a quarter-step ladder from 250 to
 > 52,890 bushels and the public-health tree from 100 to 16,590, and the measured
 > notes of [`docs/balancing.md`](docs/balancing.md) were re-measured rung by rung.
@@ -96,10 +99,14 @@ with seed. Answer with whole numbers.
 - Harvests, rats, immigrants and plague are random — and starving more than 45%
   of the city in one year ends your reign at once.
 
-Add `--agriculture` and each year also asks which farming technology to research,
-or `0` for none. The 25 nodes of the tree cost from 250 bushels up, paid out of the
-year's spare grain — what the store holds once the food the people need and the seed
-the land needs have been set aside, so the city's bread can never be invested: the
+Add `--agriculture` and each year — from the second one on — opens with a question:
+which farming technology to research, or `0` for none. The crop of the year, the
+harvest, the rats and the grain the store is left with, is reported where it lands,
+so the grain the following year's question is paid from can be checked against the
+granary.
+The 25 nodes of the tree cost from 250 bushels up, paid out of the year's spare
+grain — what the store holds once the food the people need and the seed the land
+needs have been set aside, so the city's bread can never be invested: the
 ox-drawn plough, the heavy plough, the row sowing, the seed
 drill and the garden seed let a bushel of seed sow 3, 4, 5, 6 and then 7 acres; the
 nine rungs of the fallow-fields branch and the Nippur almanac add a bushel per acre
@@ -108,7 +115,7 @@ the undercrofts and the almanac cut what the rats eat; and the draft teams, the 
 ploughshares, the harvest crews, the ox-driven threshers and the water lifts let one
 person tend 12, 14, 16, 18 and then 20 acres. The price climbs by about a quarter at
 every rung, so the whole programme is the work of a reign: measured over five
-hundred marathons, the last node is bought in year 45 on the median, and the classic
+hundred marathons, the last node is bought in year 49 on the median, and the classic
 decade is only the first few rungs — [`docs/balancing.md`](docs/balancing.md) has
 the figures.
 
@@ -127,9 +134,14 @@ measure of every branch at once. This tree buys people, not grain, so it will no
 save a city from famine on its own — the measured arc of a healer's plan is in
 [`docs/balancing.md`](docs/balancing.md). Ask for both rule sets and the one research
 moment a year serves both trees, as long as you can choose; either way the price has
-to fit in what the year leaves over, and both questions quote that figure. `--all` is
+to fit in what the year leaves over, and both questions quote that figure. The
+question opens the year, and the second year of a term is the first one that puts it:
+the vintage opening year is left exactly as the 1978 listing has it. A year whose
+store is pledged to the bread of the city and the seed of its fields says so in one
+line instead of asking, so a programme you switched on is never silent. `--all` is
 the shortcut for both trees at once — and for whichever rule set is added next, since
-it turns on every set named in `config.RULE_SETS`.
+it turns on every set named in `config.RULE_SETS`, which today holds the farming and
+the health tree; the army and the opponents of the conquest rule set are still ahead.
 
 A line that is not a whole number, or an amount the rules cannot accept, is
 explained and asked for again. When the term ends the game judges you on the

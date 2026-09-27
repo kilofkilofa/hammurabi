@@ -9,9 +9,10 @@ the year's bookkeeping.
 
 The measured results quoted in ``docs/balancing.md`` come from these policies.
 :class:`FarmerPolicy` is the one that plays the optional agriculture rule set: it
-sows at the rate the unlocked technology allows and pays for its research out of
-the grain left after the food and the seed of the year, never out of the grain the
-city needs — which is the whole trade-off that rule set asks about.
+sows at the rate the technology in force allows and pays for its research out of
+the grain the year leaves spare — the store the year opens with, less the food the
+people need and the seed the land needs — never out of the grain the city needs,
+which is the whole trade-off that rule set asks about.
 :class:`HealerPolicy` plays the optional health rule set the same way, ranking the
 rungs by the people they save from the plague instead of by the harvest they add.
 """
@@ -158,15 +159,24 @@ class FarmerPolicy(Policy):
     """A careful ruler who farms the tech tree as well as the fields.
 
     Three decisions differ from the baseline, and they belong together. The
-    sowing uses the rates the unlocked tree allows, so the plough's acres per
+    sowing uses the rates the technology in force allows, so the plough's acres per
     bushel and the harvest crews' labour are actually used; the research buys the
     most valuable node the year can afford, a bushel added to every acre first
     because that is what feeds a growing city; and no research is ever paid for
-    out of the grain the city needs — only the surplus left after the food and
-    the seed of the year. That last rule is what makes the measurements
-    comparable: a ruler who empties the store for a cheaper plough starves, and
-    ``docs/balancing.md`` records what the discipline is worth in the decade, in
-    the century, and over the eighty-five years the whole tree needs.
+    out of the grain the city needs — only the surplus the year leaves once the
+    food the people need and the seed the land needs are set aside. That last rule
+    is what makes the measurements comparable: a ruler who empties the store for a
+    cheaper plough starves, and ``docs/balancing.md`` records what the discipline
+    is worth in the decade, in the century, and over the eighty-five years the
+    whole tree needs.
+
+    Because the question is put at the start of the year — before the land trade,
+    the feeding and the sowing — a node bought this year is already in
+    ``state.unlocked`` when the year's later questions are put, while the engine
+    still plays the figures it read before the question. Every rate this policy
+    takes from the tree therefore comes from :meth:`_in_force`, not from
+    ``state.unlocked``, or it would sow and feed at a rate the engine will not
+    accept until next year.
 
     Attributes:
         researched: Keys of the technologies unlocked, in the order bought.
@@ -211,9 +221,23 @@ class FarmerPolicy(Policy):
         self.bought.append((state.year, chosen.node.key))
         return chosen.node.key
 
+    def _in_force(self, state: GameState) -> frozenset[str]:
+        """Return the technology in force this year, without what was just bought.
+
+        The engine reads the tree before it puts the research question, so a node
+        paid for during the year only pays off from the next one; a policy that
+        sows or feeds at the rates of the year has to drop it as well, or it would
+        answer with a rate the engine refuses until the year is out. The question
+        itself is put before anything is bought, so this is ``state.unlocked``
+        while the offer is being chosen.
+        """
+        return state.unlocked - {
+            key for year, key in self.bought if year == state.year
+        }
+
     def _sowable(self, state: GameState) -> int:
         """Return the acres the land, the seed and the labour of the year allow."""
-        settings = tech.settings(state.unlocked)
+        settings = tech.settings(self._in_force(state))
         return min(
             state.acres,
             state.bushels * settings.acres_per_seed,
@@ -224,8 +248,9 @@ class FarmerPolicy(Policy):
 
     def _surplus(self, state: GameState) -> int:
         """Return the grain left once the year's food and seed are set aside."""
-        settings = tech.settings(state.unlocked)
-        food = state.population * health.healers(state.unlocked).bushels_per_person
+        in_force = self._in_force(state)
+        settings = tech.settings(in_force)
+        food = state.population * health.healers(in_force).bushels_per_person
         sowable = min(
             state.acres,
             rules.max_plantable_acres(
@@ -259,10 +284,13 @@ class HealerPolicy(FarmerPolicy):
         same people, and the grain not spent on bread is what pays for the rest of the
         programme. Feeding at the classic twenty would throw that away twice over: the
         listing keeps no surplus for a year in which everybody was fed, so the extra
-        bushels simply disappear.
+        bushels simply disappear. A measure paid for this year is not in force yet —
+        the engine feeds the city at the rate it read before the question — so it is
+        the rate of :meth:`_in_force` that fills the granary rather than the rate of
+        the whole tree.
         """
         self.calls.append(("ask_feed", state.population, state.bushels))
-        rate = health.healers(state.unlocked).bushels_per_person
+        rate = health.healers(self._in_force(state)).bushels_per_person
         return self._record(
             "feed", min(state.population * rate, state.bushels), state
         )

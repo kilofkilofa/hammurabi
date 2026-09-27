@@ -114,6 +114,11 @@ class FakeUI:
     def show_status(self, state: GameState) -> None:
         self.calls.append(("status", state.population, state.bushels))
 
+    def show_harvest(
+        self, state: GameState, *, planted_acres: int, harvested: int
+    ) -> None:
+        self.calls.append(("harvest", planted_acres, harvested, state.bushels))
+
     def show_land_price(self, price: int) -> None:
         self.calls.append(("price", price))
 
@@ -148,6 +153,9 @@ class FakeUI:
 
     def show_research(self, researched: tech.Node) -> None:
         self.calls.append(("research", researched.key, researched.cost))
+
+    def show_no_research(self, state: GameState) -> None:
+        self.calls.append(("no_research", state.year, state.bushels))
 
     def show_error(self, message: str) -> None:
         self.errors.append(message)

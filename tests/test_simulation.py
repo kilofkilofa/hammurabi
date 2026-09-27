@@ -603,44 +603,44 @@ def test_a_marathon_term_never_runs_past_its_last_year(policy: type[Policy]) -> 
 #: marathon batch: the keys in tree order, the games that ever bought the node, and
 #: the mean and the median year they bought it in.
 TREE_ARC = (
-    ("plough", 301, 9.5, 10),
-    ("fallow", 338, 1.1, 1),
-    ("granaries", 315, 4.9, 5),
-    ("heavy_plough", 293, 11.3, 11),
-    ("green_manuring", 316, 2.1, 2),
-    ("draft_teams", 290, 12.7, 13),
-    ("silos", 306, 6.6, 7),
-    ("manuring", 315, 3.2, 3),
-    ("row_sowing", 287, 14.0, 14),
-    ("iron_ploughshares", 286, 15.3, 15),
-    ("cellars", 303, 7.9, 8),
-    ("irrigated_terraces", 312, 4.4, 4),
-    ("seed_drill", 286, 16.6, 17),
-    ("harvest_crews", 283, 17.7, 18),
-    ("vaults", 297, 9.4, 9),
-    ("rotation", 299, 7.1, 7),
-    ("garden_seed", 281, 19.0, 19),
-    ("ox_threshers", 279, 20.6, 20),
-    ("undercrofts", 291, 13.2, 13),
-    ("royal_gardens", 283, 17.5, 16),
-    ("water_lifts", 271, 25.7, 25),
-    ("flood_farming", 270, 28.7, 29),
-    ("irrigation_canals", 267, 34.2, 34),
-    ("seed_corn", 265, 39.6, 39),
-    ("almanac", 262, 45.8, 45),
+    ("plough", 288, 9.4, 10),
+    ("fallow", 342, 2.1, 2),
+    ("granaries", 288, 5.3, 5),
+    ("heavy_plough", 282, 11.6, 12),
+    ("green_manuring", 291, 3.2, 3),
+    ("draft_teams", 282, 13.1, 13),
+    ("silos", 282, 7.2, 7),
+    ("manuring", 282, 4.4, 4),
+    ("row_sowing", 282, 14.6, 15),
+    ("iron_ploughshares", 282, 15.9, 16),
+    ("cellars", 282, 8.7, 9),
+    ("irrigated_terraces", 282, 6.1, 6),
+    ("seed_drill", 282, 17.1, 17),
+    ("harvest_crews", 282, 18.3, 18),
+    ("vaults", 282, 10.9, 11),
+    ("rotation", 282, 9.9, 9),
+    ("garden_seed", 282, 19.8, 20),
+    ("ox_threshers", 282, 21.8, 22),
+    ("undercrofts", 282, 16.3, 15),
+    ("royal_gardens", 282, 21.8, 24),
+    ("water_lifts", 282, 28.4, 28),
+    ("flood_farming", 282, 31.6, 31),
+    ("irrigation_canals", 282, 37.2, 37),
+    ("seed_corn", 282, 42.8, 43),
+    ("almanac", 282, 49.2, 49),
 )
 
 #: Games that bought every node before the century ended, and the median year the
 #: last one was paid for — the figure ``plan.md`` §4 quotes.
-TREE_FINISHED = 262
-TREE_COMPLETION_MEDIAN = 45
+TREE_FINISHED = 282
+TREE_COMPLETION_MEDIAN = 49
 
 
 def test_the_plan_of_the_tree_is_the_work_of_a_reign() -> None:
     """The whole programme fills a reign, and ``balancing.md`` has the arc.
 
     This is the measurement behind the claim of ``plan.md`` §4 that the tree is
-    bought out in about forty-five years: the same 500-game marathon batch as the
+    bought out in about fifty years: the same 500-game marathon batch as the
     tables of ``docs/balancing.md``, read node by node. Retuning the price ladder
     fails here until the notes are re-measured as well.
     """
@@ -683,25 +683,25 @@ def test_the_plan_of_the_tree_is_the_work_of_a_reign() -> None:
 #: the smokehouses is ever bought: a reign that only heals does not last long enough
 #: to climb further, which is the measured truth the notes state.
 HEALTH_ARC = (
-    ("wells", 137, 7.7, 8),
-    ("herb_gatherers", 240, 4.1, 4),
-    ("midwives", 46, 12.6, 13),
-    ("milled_grain", 339, 1.1, 1),
-    ("drained_streets", 79, 10.0, 10),
-    ("physicians", 176, 5.7, 6),
-    ("wet_nurses", 23, 14.8, 15),
-    ("kitchen_gardens", 301, 2.1, 2),
-    ("brick_drains", 54, 11.8, 12),
-    ("apothecaries", 131, 7.1, 7),
-    ("milk_herds", 11, 16.6, 16),
-    ("oil_presses", 256, 3.3, 3),
-    ("aqueducts", 29, 13.5, 13),
-    ("doctors", 87, 9.0, 9),
-    ("birthing_houses", 9, 18.1, 18),
-    ("fish_ponds", 147, 5.1, 5),
-    ("healing_houses", 31, 11.6, 11),
-    ("foundling_home", 2, 21.5, 21.5),
-    ("smokehouses", 24, 9.2, 8),
+    ("wells", 130, 8.7, 9),
+    ("herb_gatherers", 245, 5.1, 5),
+    ("midwives", 48, 13.4, 14),
+    ("milled_grain", 342, 2.1, 2),
+    ("drained_streets", 87, 10.8, 11),
+    ("physicians", 177, 6.5, 7),
+    ("wet_nurses", 23, 16.1, 16),
+    ("kitchen_gardens", 301, 3.1, 3),
+    ("brick_drains", 56, 12.8, 13),
+    ("apothecaries", 138, 7.9, 8),
+    ("milk_herds", 19, 17.7, 18),
+    ("oil_presses", 250, 4.3, 4),
+    ("aqueducts", 37, 14.6, 14),
+    ("doctors", 90, 9.9, 10),
+    ("birthing_houses", 10, 19.1, 19),
+    ("fish_ponds", 135, 6.3, 5),
+    ("healing_houses", 40, 13.4, 12),
+    ("foundling_home", 4, 24.2, 23.5),
+    ("smokehouses", 25, 12.6, 9),
     ("temple_hospital", 0, 0.0, 0),
     ("palace_nursery", 0, 0.0, 0),
     ("breweries", 0, 0.0, 0),
@@ -713,51 +713,51 @@ HEALTH_ARC = (
 #: The summary the notes quote of the healer batch: the mean and the median measures a
 #: reign ever pays for, the games that bought at least one, and the deepest measure of
 #: the whole tree that any of the 500 games reached.
-HEALER_RUNGS_MEAN = 4.2
+HEALER_RUNGS_MEAN = 4.3
 HEALER_RUNGS_MEDIAN = 3
-HEALER_GAMES_WITH_A_MEASURE = 340
-HEALTH_DEEPEST = ("smokehouses", 24)
+HEALER_GAMES_WITH_A_MEASURE = 342
+HEALTH_DEEPEST = ("smokehouses", 25)
 
 #: The same arc for the batch that plays both rule sets at once: the farmer of
 #: ``--agriculture``, offered the health measures as well, buys the cheapest rung of
 #: whichever table is on offer. Splitting the one research moment between two
 #: programmes is what this row measures.
 SPLIT_ARC = (
-    ("wells", 304, 9.4, 10),
-    ("herb_gatherers", 295, 11.2, 11),
-    ("midwives", 293, 12.7, 13),
-    ("milled_grain", 293, 14.0, 14),
-    ("drained_streets", 293, 15.3, 15),
-    ("physicians", 293, 16.7, 17),
-    ("wet_nurses", 293, 17.9, 18),
-    ("kitchen_gardens", 293, 19.1, 19),
-    ("brick_drains", 291, 20.3, 20),
-    ("apothecaries", 290, 21.5, 22),
-    ("milk_herds", 289, 22.7, 23),
-    ("oil_presses", 287, 23.9, 24),
-    ("aqueducts", 285, 25.0, 25),
-    ("doctors", 283, 26.1, 26),
-    ("birthing_houses", 281, 27.3, 27),
-    ("fish_ponds", 273, 28.4, 28),
-    ("healing_houses", 264, 29.5, 29),
-    ("foundling_home", 256, 30.6, 31),
-    ("smokehouses", 251, 31.6, 32),
-    ("temple_hospital", 248, 32.6, 33),
-    ("palace_nursery", 247, 33.7, 34),
-    ("breweries", 242, 34.7, 35),
-    ("childrens_gardens", 223, 36.0, 36),
-    ("date_presses", 180, 38.0, 38),
-    ("house_of_life", 80, 40.4, 40),
+    ("wells", 289, 9.0, 10),
+    ("herb_gatherers", 284, 11.4, 12),
+    ("midwives", 282, 13.0, 13),
+    ("milled_grain", 282, 14.5, 15),
+    ("drained_streets", 282, 15.8, 16),
+    ("physicians", 282, 17.2, 17),
+    ("wet_nurses", 282, 18.5, 19),
+    ("kitchen_gardens", 282, 19.7, 20),
+    ("brick_drains", 282, 20.9, 21),
+    ("apothecaries", 281, 22.1, 22),
+    ("milk_herds", 280, 23.3, 23),
+    ("oil_presses", 280, 24.5, 25),
+    ("aqueducts", 280, 25.7, 26),
+    ("doctors", 275, 26.8, 27),
+    ("birthing_houses", 271, 27.9, 28),
+    ("fish_ponds", 266, 29.0, 29),
+    ("healing_houses", 261, 30.1, 30),
+    ("foundling_home", 257, 31.1, 31),
+    ("smokehouses", 248, 32.2, 32),
+    ("temple_hospital", 244, 33.2, 33),
+    ("palace_nursery", 243, 34.2, 34),
+    ("breweries", 233, 35.4, 35),
+    ("childrens_gardens", 199, 36.9, 37),
+    ("date_presses", 124, 38.9, 39),
+    ("house_of_life", 37, 41.5, 42),
 )
 
 #: The splitter's summary: it buys more measures than farming technologies, and the
 #: deepest measure of the health tree is reached by eighty of the 500 games.
-SPLIT_HEALTH_RUNGS_MEAN = 13.3
-SPLIT_HEALTH_RUNGS_MEDIAN = 19
-SPLIT_FARMING_RUNGS_MEAN = 9.5
-SPLIT_FARMING_RUNGS_MEDIAN = 13
-SPLIT_GAMES_WITH_A_MEASURE = 304
-SPLIT_DEEPEST = ("house_of_life", 80)
+SPLIT_HEALTH_RUNGS_MEAN = 12.7
+SPLIT_HEALTH_RUNGS_MEDIAN = 18
+SPLIT_FARMING_RUNGS_MEAN = 8.7
+SPLIT_FARMING_RUNGS_MEDIAN = 12
+SPLIT_GAMES_WITH_A_MEASURE = 289
+SPLIT_DEEPEST = ("house_of_life", 37)
 
 
 #: The median year a healer survives when the whole tree is handed to it before the

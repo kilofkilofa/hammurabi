@@ -66,13 +66,16 @@ def _endless_rng(
 def _spare_state(spare: int, **flags: bool) -> GameState:
     """Return a state whose year leaves ``spare`` bushels for research.
 
-    The food of the city and the seed of its fields are paid before anything is
-    offered, so a test that wants the research question put has to start from a
-    store that covers both. The newcomers announced in the opening report have
-    already joined the city by then, which is why the helper counts them too, and
-    it adds the two figures the way the rules do.
+    The question is put at the start of the year, before the land trade, the
+    feeding and the sowing, and the food of the city and the seed of its fields are
+    set aside before anything is offered: a test that wants the question put has to
+    start from a store that covers both. The state opens in the year *before* the
+    first research year, because a rule set leaves the opening year of a term
+    exactly as the listing has it. The newcomers announced in the opening report
+    have already joined the city when the budget is worked out, which is why the
+    helper counts them too, and it adds the two figures the way the rules do.
     """
-    state = GameState(**flags)
+    state = GameState(year=config.FIRST_RESEARCH_YEAR - 1, **flags)
     people = state.population + state.immigrants_this_year
     sowable = min(state.acres, rules.max_plantable_acres(people))
     state.bushels = (
@@ -504,7 +507,13 @@ def test_the_health_flag_adds_no_random_draw() -> None:
 def test_a_health_measure_is_paid_for_and_shows_from_the_next_year() -> None:
     """Research costs grain at once and only changes the figures of later years."""
     ui = FakeUI(feed=(1600,), research=["milled_grain", None])
-    game = Game(_endless_rng(), ui, state=GameState(health=True, bushels=10_000))
+    game = Game(
+        _endless_rng(),
+        ui,
+        state=GameState(
+            year=config.FIRST_RESEARCH_YEAR - 1, health=True, bushels=10_000
+        ),
+    )
 
     game.play_year()
 
@@ -527,7 +536,12 @@ def test_the_research_question_covers_both_programmes() -> None:
     game = Game(
         _endless_rng(),
         ui,
-        state=GameState(agriculture=True, health=True, bushels=10_000),
+        state=GameState(
+            year=config.FIRST_RESEARCH_YEAR - 1,
+            agriculture=True,
+            health=True,
+            bushels=10_000,
+        ),
     )
 
     game.play_year()
@@ -873,6 +887,85 @@ def test_the_rule_set_adds_no_random_draw() -> None:
     assert _figures(agriculture.state) == _figures(classic.state)
 
 
+def test_the_classic_year_reports_no_harvest() -> None:
+    """The vintage transcript keeps its silence: only a rule set shows the crop."""
+    ui = FakeUI(feed=(2000,))
+    game = Game(_year_rng(), ui)
+
+    game.play_year()
+
+    assert "harvest" not in ui.names()
+
+
+def test_the_crop_of_the_year_is_reported_where_it_lands() -> None:
+    """A rule set reports the crop between the sowing and the close of the year.
+
+    The three figures are the bushels sown, the bushels reaped and the store the
+    crop leaves, so a ruler can see what the fields brought in and what the year
+    after will open with. The research question of the year is put long before the
+    crop lands, so the store it quotes is the one the opening status showed — the
+    granary really held it — never the store the crop is about to make.
+    """
+    ui = FakeUI(feed=(2000,), plant=(900,), research=[None])
+    state = _spare_state(config.TECH_COSTS["plough"], agriculture=True)
+    store = state.bushels
+    game = Game(_year_rng(yield_per_acre=5, rats=3), ui, state=state)
+
+    game.play_year()
+
+    # The classic two acres a bushel made the 900 sown acres cost 450 bushels of
+    # seed, 2000 fed the hundred people and the five-bushel yield brought in 4500.
+    assert ("harvest", 900, 4500, store - 2000 - 450 + 4500) in ui.calls
+    assert game.state.bushels == store - 2000 - 450 + 4500
+    assert (
+        "ask_research",
+        config.FIRST_RESEARCH_YEAR,
+        store,
+        ("plough",),
+    ) in ui.calls, "the budget is the store the opening report showed"
+    assert ui.names()[-1] == "harvest", "the crop is the last word of the year"
+
+
+def test_the_store_the_research_question_quotes_adds_up() -> None:
+    """The store on offer is the one the opening status showed, to the bushel.
+
+    A year played as a ruler once reported it: the granary opens at 8000 bushels
+    with 112 people in the city, who need 2240 bushels of bread, and the 1000 acres
+    the city owns need 333 bushels of seed at the plough's three acres a bushel — so
+    the year may invest 5427 of the store and no more. The sale of 100 acres then
+    adds 2000, the 900 acres sown cost 300 bushels of seed, the harvest adds 4500 at
+    five bushels an acre and the rats eat nothing, leaving 11960:
+    ``8000 + 2000 - 2240 - 300 + 4500 = 11960``. The question therefore quotes the
+    figure the report showed (8000), never the store the crop is about to make.
+    """
+    ui = FakeUI(buy=(0,), sell=(100,), feed=(2240,), plant=(900,), research=[None])
+    state = GameState(
+        year=config.FIRST_RESEARCH_YEAR - 1,
+        population=100,
+        acres=1000,
+        bushels=8000,
+        agriculture=True,
+        unlocked=frozenset({"plough"}),
+        immigrants_this_year=12,
+        yield_per_acre=3,
+    )
+    game = Game(_year_rng(yield_per_acre=5, rats=3, migrants=3), ui, state=state)
+
+    game.play_year()
+
+    # The newcomers of the report join before the trading, so 112 people eat here.
+    assert state.population == 112
+    assert ("status", 112, 8000) in ui.calls
+    asked = [call for call in ui.calls if call[0] == "ask_research"]
+    assert [call[:3] for call in asked] == [
+        ("ask_research", config.FIRST_RESEARCH_YEAR, 8000)
+    ], "one question, quoting the store the opening report showed"
+    assert "plough" not in asked[0][3], "an unlocked node is not offered again"
+    assert state.spare_bushels == 8000 - 2240 - 333
+    assert ("harvest", 900, 4500, 11960) in ui.calls
+    assert state.bushels == 11960
+
+
 def test_research_is_paid_out_of_the_spare_grain_of_the_year() -> None:
     """The cost leaves the store and the node is unlocked for the years to come."""
     ui = FakeUI(plant=(0,), research=["plough"])
@@ -897,21 +990,81 @@ def test_declining_research_keeps_the_grain_and_unlocks_nothing() -> None:
 
     game.play_year()
 
-    assert ("ask_research", 1, store, ("plough", "fallow", "granaries")) in ui.calls
+    assert (
+        "ask_research",
+        config.FIRST_RESEARCH_YEAR,
+        store,
+        ("plough", "fallow", "granaries"),
+    ) in ui.calls
     assert game.state.unlocked == frozenset()
     assert game.state.bushels == store
     assert "research" not in ui.names()
 
 
+def test_the_opening_year_of_a_term_puts_no_research_question() -> None:
+    """A rule set leaves the first year of a term exactly as the listing has it.
+
+    The crop of the opening year is the first budget a ruler can draw on, so the
+    question opens the second year of the term (``config.FIRST_RESEARCH_YEAR``) and
+    never the first, however full the granary already is.
+    """
+    ui = FakeUI(feed=(2000,), plant=(0,))
+    game = Game(
+        _endless_rng(), ui, state=GameState(agriculture=True, bushels=10_000)
+    )
+
+    game.play_year()
+
+    assert "ask_research" not in ui.names(), "the opening year is never asked"
+
+    game.play_year()
+
+    assert "ask_research" in ui.names(), "the second year opens with the question"
+
+
 def test_a_ruler_without_grain_is_not_asked_to_research() -> None:
     """A question with no affordable answer is never put."""
     ui = FakeUI(plant=(0,))
-    game = Game(_year_rng(), ui, state=GameState(agriculture=True, bushels=100))
+    state = GameState(
+        year=config.FIRST_RESEARCH_YEAR - 1, agriculture=True, bushels=100
+    )
+    game = Game(_year_rng(), ui, state=state)
 
     game.play_year()
 
     assert "ask_research" not in ui.names()
     assert game.state.unlocked == frozenset()
+
+
+def test_a_year_with_nothing_to_invest_says_so_instead_of_falling_silent() -> None:
+    """The empty budget is reported, so a rule set is never invisible.
+
+    The question is put only when the year's spare grain can pay for a node, so a
+    ruler whose store is pledged to the bread of the city would otherwise see
+    nothing at all of the programme they switched on — a rule set that showed
+    neither a table nor a line looks like a rule set that is not being played. The
+    line names the store the budget was measured from, which is the figure the
+    opening report has just shown.
+    """
+    ui = FakeUI(plant=(0,))
+    state = _spare_state(0, agriculture=True)
+    store = state.bushels
+    game = Game(_year_rng(), ui, state=state)
+
+    game.play_year()
+
+    assert ("no_research", config.FIRST_RESEARCH_YEAR, store) in ui.calls
+    assert "ask_research" not in ui.names()
+
+
+def test_the_classic_game_is_never_told_its_budget_is_empty() -> None:
+    """Nothing is added to the vintage transcript: the line belongs to a rule set."""
+    ui = FakeUI(plant=(0,))
+    game = Game(_year_rng(), ui)
+
+    game.play_year()
+
+    assert "no_research" not in ui.names()
 
 
 def test_a_year_that_leaves_nothing_spare_puts_no_research_question() -> None:
@@ -932,19 +1085,24 @@ def test_a_year_that_leaves_nothing_spare_puts_no_research_question() -> None:
 def test_the_health_s_feeding_rate_widens_the_year_s_budget() -> None:
     """A person fed on thirteen bushels leaves seven more for the programme."""
     ui = FakeUI(plant=(0,))
-    state = GameState(health=True, unlocked=frozenset({"date_presses"}))
+    state = GameState(
+        year=config.FIRST_RESEARCH_YEAR - 1,
+        health=True,
+        unlocked=frozenset({"date_presses"}),
+    )
     people = state.population + state.immigrants_this_year
     sowable = min(state.acres, rules.max_plantable_acres(people))
     seed = rules.seed_cost(sowable)
     cheap_food = people * config.HEALTH_BUSHELS_PER_PERSON["date_presses"]
     state.bushels = cheap_food + seed + 900
+    store = state.bushels
     game = Game(_year_rng(), ui, state=state)
 
     game.play_year()
 
     assert state.spare_bushels == 900
     assert "ask_research" in ui.names()
-    classic_spare = state.bushels - people * config.BUSHELS_PER_PERSON - seed
+    classic_spare = store - people * config.BUSHELS_PER_PERSON - seed
     assert classic_spare == 200, "the classic rate would leave far less to invest"
 
 
@@ -959,7 +1117,12 @@ def test_only_one_research_starts_in_a_year() -> None:
 
     assert game.state.unlocked == frozenset({"plough"})
     assert [call for call in ui.calls if call[0] == "ask_research"] == [
-        ("ask_research", 1, store, ("plough", "fallow", "granaries"))
+        (
+            "ask_research",
+            config.FIRST_RESEARCH_YEAR,
+            store,
+            ("plough", "fallow", "granaries"),
+        )
     ]
 
 
@@ -991,9 +1154,17 @@ def test_a_ui_that_only_offers_an_unknown_technology_is_given_up_on() -> None:
 
 
 def test_a_farmer_climbs_the_tree_one_node_a_year() -> None:
-    """Each year buys the cheapest node on offer, so the tree only ever grows."""
+    """Each year buys the cheapest node on offer, so the tree only ever grows.
+
+    The term opens in the year before the first research year, since the opening
+    year of a term is never asked, so the first node is bought in the second year.
+    """
     ui = _FarmerUI()
-    game = Game(_endless_rng(), ui, state=GameState(agriculture=True))
+    game = Game(
+        _endless_rng(),
+        ui,
+        state=GameState(year=config.FIRST_RESEARCH_YEAR - 1, agriculture=True),
+    )
 
     game.play_year()
     first = game.state.unlocked

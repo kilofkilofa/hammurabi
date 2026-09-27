@@ -103,9 +103,11 @@ class GameState:
         rats_ate_this_year: Bushels eaten by rats during the last year.
         yield_per_acre: Harvest of the last year in bushels per planted acre.
         spare_bushels: Grain the ruler may spend on research this year: the store
-            less the food the people need and the seed the land needs, as ruled by
-            :func:`hammurabi.rules.spare_grain`. ``0`` in a classic game, which
-            never researches, and in a year whose research question is never put.
+            the opening report showed, less the food the people need and the seed
+            the land needs, as ruled by :func:`hammurabi.rules.spare_grain` and
+            written before the land trade because that is when the question is put.
+            ``0`` in a classic game, which never researches, and in the first year
+            of a term, which puts no research question.
         plague_this_year: Whether the plague struck at the start of this year.
         plague_roll: Roll carried over from the previous year (``Q`` in the
             listing) that decides whether the plague strikes this year; a

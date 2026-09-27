@@ -34,6 +34,18 @@ def _ui(*answers: str) -> tuple[ConsoleUI, StringIO, list[str]]:
     return ConsoleUI(console=console, read=read), buffer, questions
 
 
+def _banner(buffer: StringIO) -> str:
+    """Return the intro panel as one line of text, without its drawn borders.
+
+    ``rich`` wraps the panel's sentences and draws a vertical border at the ends of
+    every wrapped line, so a phrase that runs over a line break cannot be found in
+    the plain rendering of :func:`tests.support.render`: the border sits between the
+    words where the break fell. Dropping the borders makes the checks below read the
+    sentence as the player reads it, whatever width the panel happens to wrap at.
+    """
+    return " ".join(render(buffer).replace("│", " ").split())
+
+
 # --- Reporting ---------------------------------------------------------------
 
 
@@ -97,6 +109,19 @@ def test_the_plague_reports_both_populations() -> None:
     text = render(buffer)
     assert "A horrible plague struck! Half the people died." in text
     assert "from 100 to 50" in text
+
+
+def test_the_harvest_is_reported_with_the_grain_it_leaves() -> None:
+    """The crop is reported where it lands, so the grain left is on show."""
+    ui, buffer, _ = _ui("0")
+    state = GameState(year=2, bushels=11_960, yield_per_acre=5, rats_ate_this_year=0)
+
+    ui.show_harvest(state, planted_acres=900, harvested=4500)
+
+    text = render(buffer)
+    assert "Your 900 acres yielded 4500 bushels at 5 bushels per acre" in text
+    assert "the rats ate 0 bushels." in text
+    assert "Grain in store after the harvest: 11960 bushels." in text
 
 
 def test_the_land_price_is_announced() -> None:
@@ -337,8 +362,9 @@ def test_the_intro_announces_the_agriculture_rule_set() -> None:
 
     ui.show_intro(GameState(agriculture=True))
 
-    text = render(buffer)
+    text = _banner(buffer)
     assert "This is the agriculture rule set" in text
+    assert "each year from the second one on" in text
     assert f"may also pay for one of the {len(tech.TECH_TREE)}" in text
     assert "once the people are fed" in text
 
@@ -422,6 +448,23 @@ def test_the_research_question_quotes_what_may_be_spent() -> None:
     assert ui.ask_research(state, choices) is None
 
     assert f"you have 10000 bushels and may spend {plough} of them" in questions[0]
+
+
+def test_a_year_that_leaves_nothing_over_says_so() -> None:
+    """The programme never falls silent: an empty budget is reported in one line.
+
+    The engine puts the question only when its budget can pay for a node, so a year
+    whose store is pledged to the bread of the city and the seed of its fields would
+    otherwise show a ruler nothing at all of the rule set they switched on.
+    """
+    ui, buffer, questions = _ui("0")
+
+    ui.show_no_research(GameState(bushels=1950, population=100, acres=1000))
+
+    text = render(buffer)
+    assert "Your store of 1950 bushels leaves nothing over for research" in text
+    assert "the food your people need and the seed your fields need" in text
+    assert questions == [], "the line reports; it asks nothing"
 
 
 def test_a_number_outside_the_list_is_handed_back_to_the_engine() -> None:
@@ -512,8 +555,9 @@ def test_the_intro_announces_both_rule_sets_when_both_are_played() -> None:
 
     ui.show_intro(GameState(agriculture=True, health=True))
 
-    text = render(buffer)
+    text = _banner(buffer)
     assert "This is the agriculture and health rule set" in text
+    assert "each year from the second one on" in text
     assert (
         f"farming technologies and the {health.HEALTH.size} public-health measures"
         in text

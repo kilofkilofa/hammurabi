@@ -75,27 +75,36 @@ term from 1 to 1000 years; the classic ten is the default and 100 the marathon.
    positive, which happens for 20% of the years. Half the population then dies
    (rounded down). Year 1 uses the listing's initial roll (`Q = 1`), so the
    first year is always plague-free.
-3. **Land price** — a random value of 17–26 bushels per acre, rolled once per
+3. **Research** — *(only when a rule set is on, and never in the first year of a
+   term: `config.FIRST_RESEARCH_YEAR`)* the ruler may pay for one node of the
+   trees in play, but only out of the **spare grain of the year**: what the store
+   holds — the store the report has just shown — once the food the people need
+   (at the public health in force) and the seed the land needs for the next
+   sowing have been set aside. A node costing more than that is not offered, so
+   the bread of the city and the seed of its fields can never be invested. The
+   question opens the year, before the land price is rolled and before the trade,
+   the feeding and the sowing can spend that grain, and it is asked only when at
+   least one node fits in it; a year whose spare grain can pay for no node reports
+   that empty budget in one line instead of asking, so the programmes are never
+   invisible. A node takes effect in the years that follow, because the technology
+   in force is read at the top of a year.
+4. **Land price** — a random value of 17–26 bushels per acre, rolled once per
    year and fixed for both buying and selling that year.
-4. **Buy or sell land** — buy with grain, sell for grain. The price is fixed for
+5. **Buy or sell land** — buy with grain, sell for grain. The price is fixed for
    the whole year, so as in the original the ruler does one of the two, never
    both. At least one acre must remain (selling every acre is forbidden).
-5. **Feed the people** — each person needs 20 bushels. Unfed people starve.
-6. **Plant grain** — 1 bushel of seed sows 2 acres and 1 person can tend 10
+6. **Feed the people** — each person needs 20 bushels. Unfed people starve.
+7. **Plant grain** — 1 bushel of seed sows 2 acres and 1 person can tend 10
    acres, so at most `10 * population - 1` acres. Planting 0 acres is allowed.
-7. **Harvest** — each planted acre yields 1–5 bushels, plus the bushels the
+8. **Harvest** — each planted acre yields 1–5 bushels, plus the bushels the
    agriculture rule set's husbandry technologies add when it is in play.
-8. **Rats** — 40% chance: rats eat `store / 2` or `store / 4` bushels, where
+9. **Rats** — 40% chance: rats eat `store / 2` or `store / 4` bushels, where
    `store` is the grain left after feeding and seeding (before harvest). The
-   granaries and the Nippur almanac divide that share further.
-9. **Research** — *(agriculture rule set only)* the ruler may pay for one node of
-   the farming tech tree below, but only out of the **spare grain of the year**:
-   what the store holds once the food the people need (at the public health in
-   force) and the seed the land needs for the next sowing have been set aside. A
-   node costing more than that is not offered, so the bread of the city and the
-   seed of its fields can never be invested. Asked only when at least one node fits
-   in that spare grain; a node takes effect in the years that follow, because the
-   farming technology is read at the start of a year.
+   granaries and the Nippur almanac divide that share further. With a rule set in
+   play the crop of the year is reported here, where it lands — the harvest, the
+   rats and the grain the store is left with, through `ui.show_harvest` — so the
+   grain the next year's question is paid from can be checked against the
+   granary; a game without a rule set reports no crop at all.
 10. **Immigration** — the number of new citizens is worked out from land, grain
     and population. They are announced in the next year's report, which is when
     they join the city.
@@ -117,12 +126,14 @@ answers in a row the engine stops with an error instead of looping forever
 
 The rules above are what `hammurabi` plays by default, in the classic decade and
 in the marathon alike. `hammurabi --agriculture` adds an optional farming rule set
-on top of them: the farming technologies of Sumeria. Once a year, after the harvest
-and before the newcomers are counted, the ruler may pay for **one** node of the tree
-out of the year's spare grain: the food the people need and the seed the land needs
-for the next sowing are set aside first, so the bread of the city can never be
-invested. The node takes effect in the years that follow, costs no random draw of its
-own, and changes nothing else about the game.
+on top of them: the farming technologies of Sumeria. Once a year, at the top of the
+year — after the report and the plague, before the land price is rolled and before
+the trade, the feeding and the sowing can spend the grain — the ruler may pay for
+**one** node of the tree out of the year's spare grain: the food the people need and
+the seed the land needs for the next sowing are set aside first, so the bread of the
+city can never be invested. The question is put from the second year of a term on
+(`config.FIRST_RESEARCH_YEAR`), the node takes effect in the years that follow, costs
+no random draw of its own, and changes nothing else about the game.
 
 The tree holds 25 nodes; all of them together cost 263,450 bushels. They stand in
 four branches — the fields, the seed, the store and the hands — and meet in the
@@ -174,8 +185,8 @@ The prices climb by about a quarter at every rung, and that is what turns the
 programme into the work of a reign: the first rungs fit into the opening years, the
 middle ones need the surplus of a good decade, and the last ones cost what many
 harvests leave over. Measured over five hundred marathons, a ruler who spends the
-spare grain of each year on the tree buys the last node in year 45 on the median and
-finishes the whole tree in 262 of the 500 games; the arc of that plan, rung by rung,
+spare grain of each year on the tree buys the last node in year 49 on the median and
+finishes the whole tree in 282 of the 500 games; the arc of that plan, rung by rung,
 is in [`balancing.md`](./balancing.md).
 
 Five consequences are worth stating plainly:
@@ -187,19 +198,25 @@ Five consequences are worth stating plainly:
   a habit of the policy;
 - the question is put only when that spare grain can afford at least one node, so a
   ruler without a surplus is never asked a question they cannot answer, and the
-  classic game (where the rule set is off) is never asked at all;
-- the research is paid **before** the immigration formula runs, so a city that
-  bought technology that year receives slightly fewer newcomers — the price of the
-  school is paid by the city that would have grown;
+  classic game (where the rule set is off) is never asked at all — a year that can
+  pay for no rung says in one line that its store leaves nothing over for research,
+  because a rule set that showed neither a table nor a line would look like a rule
+  set that was not being played;
+- the research is paid **before** the trade, the feeding and the sowing of the year,
+  and long before the immigration formula runs, so the year spends from a store the
+  school has already reduced — a city that bought technology that year receives
+  slightly fewer newcomers, because the price of the school is paid by the city that
+  would have grown;
 - no draw is added, so the same seed produces exactly the same events with and
   without the rule set: [`balancing.md`](./balancing.md) measures the two against
   each other, and a ruler who declines every offer plays the classic term
   unchanged;
-- the farming technology of a year is read at the start of it, so a node paid for
-  in December shows in the fields of the following year.
+- the technology in force is read at the top of the year, before the question is
+  put, so a node paid for now shows in the fields of the following year and never
+  re-prices the harvest already in the granary.
 
 The mature tree feeds a city the classic rules cannot feed — in the measured
-marathon the same farmer survives 262 centuries of 500 where the careful ruler
+marathon the same farmer survives 282 centuries of 500 where the careful ruler
 survives one — but it does not give that city land. A century of good harvests
 doubles the population, so a ruler who wants the acres per person of the verdict
 to hold must buy acres as well; the tree is what pays for them.
@@ -209,8 +226,10 @@ to hold must buy acres as well; the tree is what pays for them.
 `hammurabi --health` adds the other optional rule set: the public-health measures of
 Sumeria, bought with the same yearly research as the farming tree. Once a year, in
 the same moment the agriculture rule set uses, the ruler may pay for **one** measure
-out of the spare grain of the year. The measure takes effect in the years that
-follow, costs no random draw of its own, and changes nothing else about the game.
+out of the spare grain of the year. The question opens the year, exactly as with the
+farming tree, and the crop of the year is reported where it lands, since both
+programmes are paid out of that one budget. The measure takes effect in the years
+that follow, costs no random draw of its own, and changes nothing else about the game.
 With both rule sets in play the offer covers both trees — a year holds one research
 moment however many programmes it serves — and the table says which programme offers
 each node.
@@ -294,15 +313,17 @@ Five consequences are worth stating plainly:
   bring their own margin, because feeding a person out of fewer bushels leaves more
   to invest;
 - the question is put only when that spare grain can afford at least one measure, so
-  a ruler without a surplus is never asked a question they cannot answer, and a
-  classic game is never asked at all;
-- the research is paid **before** the immigration formula runs, so a city that built
-  a measure that year receives slightly fewer newcomers, exactly as with the farming
-  tree;
+  a ruler without a surplus is never asked a question they cannot answer, a classic
+  game is never asked at all, and a year that can pay for no measure says in one
+  line that its store leaves nothing over for research instead of falling silent;
+- the research is paid **before** the trade, the feeding and the sowing of the year,
+  and long before the immigration formula runs, so a city that built a measure that
+  year receives slightly fewer newcomers, exactly as with the farming tree;
 - no draw is added, so the same seed produces exactly the same events with and
   without the flag: a ruler who declines every offer plays the classic term unchanged;
-- the public health of a year is read at the start of it, so a measure paid for in
-  December shows in the following year, the roll of that year included.
+- the public health in force is read at the top of the year, before the question is
+  put, so a measure paid for now shows in the following year, the roll of that year
+  included.
 
 ### End of game (after the tenth year)
 
@@ -398,9 +419,11 @@ default and `--years` still chooses the term — and adds the opt-in rule set of
   plain arguments that default to the vintage values, so `rules.py` stays free of
   rule-set knowledge and a classic caller keeps the 1978 numbers;
 - the engine asks for one research a year, only when the rule set is on and the
-  grain on offer can pay for a node, and pays for it before the newcomers are
-  counted — since `1.5.0` that grain is the year's spare grain rather than the whole
-  store, as the target outcome below records;
+  grain on offer can pay for a node, and pays for it at the top of the year, before
+  the trade, the feeding and the sowing — since `1.5.0` that grain is the year's
+  spare grain rather than the whole store, and since `1.5.2` the question opens the
+  year instead of following the newcomers and the harvest, as the target outcomes
+  below record;
 - the suite covers the tree, the research step, the UI's table and the entry
   point's flag, and `docs/balancing.md` measures the rule set against the classic
   game: the flag alone is inert, and the tree costs more than it returns in a
@@ -498,6 +521,47 @@ the one flag that saves a player from remembering the others:
   the term of `--agriculture --health`, event for event;
 - `tests/test_docs.py` fails if a rule set of the tuple is missing from §4 or if
   `--all` leaves `README.md`, so the next rule set cannot arrive undocumented.
+
+### Target outcome for v1.5.2 (the question opens the year)
+
+`1.5.2` changes no rule, no rate and no random draw — the classic game is
+untouched — but it puts the research question where the grain it quotes really is,
+at the top of the year, and reports the crop of the year where it lands:
+
+- with a rule set in play the year opens with the report, the plague and then the
+  research question, before the land price is rolled and before the trade, the
+  feeding and the sowing can spend the grain: the budget is the store the report has
+  just shown, less the food the people need and the seed the land needs (the spare
+  grain of M11), so the figure on offer is grain the granary holds at that moment;
+- the question is put from the second year of a term on
+  (`config.FIRST_RESEARCH_YEAR`) and the banner says so before the first year, so a
+  rule set leaves the vintage opening year untouched and no promise of a first-year
+  question is made, and the classic game is never asked at all
+  (`test_the_opening_year_of_a_term_puts_no_research_question`,
+  `test_the_classic_rule_set_never_asks_for_research`);
+- a year whose spare grain pays for no node reports that empty budget in one line
+  (`ui.show_no_research`) instead of falling silent, so a ruler always sees the
+  research moment of a rule-set year — as the table of what the budget can pay for,
+  or as the line that says there is nothing to pay with — and a rule set never looks
+  like a rule set that is not being played
+  (`test_a_year_with_nothing_to_invest_says_so_instead_of_falling_silent`,
+  `test_the_classic_game_is_never_told_its_budget_is_empty`,
+  `test_a_year_that_leaves_nothing_over_says_so`);
+- the crop of the year is reported where it lands instead: `ui.show_harvest` carries
+  the harvest, the rats and the grain the store is left with, between the sowing and
+  the newcomers, so the grain the following year's question is paid from is printed
+  by the year that earned it — a game without a rule set reports no crop and keeps
+  the vintage transcript (`test_the_crop_of_the_year_is_reported_where_it_lands`,
+  `test_the_classic_year_reports_no_harvest`);
+- `test_the_store_the_research_question_quotes_adds_up` pins the arithmetic from both
+  sides: the granary opens at 8000 bushels with 112 people, who need 2240 bushels of
+  bread, and the 1000 acres need 333 bushels of seed, so the year may invest
+  `8000 - 2240 - 333 = 5427` and the question quotes the 8000 the report showed —
+  never the store the crop is about to make, which the same year ends at 11960;
+- the measured figures of the two optional rule sets were re-measured for the moved
+  question, since a budget drawn at the top of the year is a budget drawn before the
+  trade and the harvest of that year; `docs/balancing.md` carries the new counts, and
+  the classic batches are exactly the ones they were.
 
 ## 7. Tech stack
 

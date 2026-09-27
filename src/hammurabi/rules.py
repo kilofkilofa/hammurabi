@@ -265,19 +265,22 @@ def spare_grain(
     """Return the grain a ruler may spend on research this year.
 
     The city comes first: the food its people need for the year and the seed its
-    land needs for the next sowing are set aside, and only what is left over is a
-    budget. The optional rule sets of ``docs/plan.md`` section 4 may start a node
+    land needs for the season to come are set aside, and only what is left over is
+    a budget. The optional rule sets of ``docs/plan.md`` section 4 may start a node
     only out of that surplus, so the bread of the city and the seed of its fields
-    can never be invested.
+    can never be invested. The question is put at the start of the year
+    (``config.FIRST_RESEARCH_YEAR``), before the land trade, the feeding and the
+    sowing, so the figure is the store the opening report has just shown; the seed
+    it sets aside is what the land the city already owns needs.
 
     The feeding rate in force is an argument like the sowing rates, so the health
     rule set's measures bring their own margin: feeding a person out of fewer
     bushels leaves more grain in the year's budget.
 
     Args:
-        bushels: Grain in store after the harvest and the rats.
+        bushels: Grain in store when the question is put, before the year's expenses.
         population: People living in the city, who will have to be fed.
-        acres: Acres the city owns.
+        acres: Acres the city owns, which its seed must cover.
         bushels_per_person: Bushels that feed one person for a year.
         acres_per_seed: Acres one bushel of seed sows.
         acres_per_worker: Acres one person can tend.

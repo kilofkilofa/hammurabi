@@ -142,6 +142,14 @@ MAX_ANSWER_ATTEMPTS = 100
 RULE_SETS: tuple[str, ...] = ("agriculture", "health")
 
 
+# --- Research (optional rule sets) -------------------------------------------
+
+#: The first year of a term that puts the research question: the classic opening
+#: year is played exactly as the listing has it, so a rule set adds nothing to
+#: year 1 (``plan.md`` section 4, step 3).
+FIRST_RESEARCH_YEAR = 2
+
+
 # --- Agriculture rule set (``--agriculture``) --------------------------------
 
 # The optional rule set of ``plan.md`` section 4: the farming technologies of

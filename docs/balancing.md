@@ -71,7 +71,7 @@ end and still scored as a national fink.
 | seller | 500 | 363 | 137 | 139 | 50 | 98 | 213 |
 | starver | 500 | 0 | 500 | 0 | 0 | 0 | 500 |
 | careful (agriculture) | 500 | 175 | 325 | 123 | 16 | 31 | 330 |
-| farmer (agriculture) | 500 | 296 | 204 | 177 | 26 | 55 | 242 |
+| farmer (agriculture) | 500 | 282 | 218 | 165 | 30 | 53 | 252 |
 
 | Policy | Mean years played | Mean year of a mid-term impeachment |
 | --- | --- | --- |
@@ -80,7 +80,7 @@ end and still scored as a national fink.
 | seller | 8.78 | 5.54 |
 | starver | 1.00 | 1.00 |
 | careful (agriculture) | 6.71 | 4.93 |
-| farmer (agriculture) | 7.47 | 3.80 |
+| farmer (agriculture) | 7.17 | 3.52 |
 
 ## What the random events actually do
 
@@ -194,10 +194,12 @@ usually meets its 45% year long before the hundredth.
 
 `--agriculture` puts the twenty-five farming technologies of `plan.md` §4 in play: one
 node a year, paid out of the year's spare grain — what the store holds once the food
-the people need and the seed the land needs have been set aside. Research never costs
-a random draw, so a term played with the rule set on and every offer declined is the
-classic term bit for bit — and the batches below show exactly that, then what the
-tree is worth to a ruler who pays for it.
+the people need and the seed the land needs have been set aside. The question opens
+the year, so the budget is the store the opening report has just shown, and the crop
+of the year is reported where it lands, so the grain a question quotes is grain the
+granary has really held. Research never costs a random draw, so a term played with the
+rule set on and every offer declined is the classic term bit for bit — and the batches
+below show exactly that, then what the tree is worth to a ruler who pays for it.
 
 The farmer of these measurements buys the most valuable node the year can afford, a
 bushel per acre first, and spends nothing on research that the year does not leave
@@ -211,14 +213,14 @@ researches nothing at all.
 | Batch | Games | Completed | Impeached mid-term | Fantastic | Mediocre | Tyrant | National fink |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | careful (agriculture) | 500 | 175 | 325 | 123 | 16 | 31 | 330 |
-| farmer (agriculture) | 500 | 296 | 204 | 177 | 26 | 55 | 242 |
-| farmer (agriculture, marathon) | 500 | 262 | 238 | 7 | 2 | 13 | 478 |
+| farmer (agriculture) | 500 | 282 | 218 | 165 | 30 | 53 | 252 |
+| farmer (agriculture, marathon) | 500 | 282 | 218 | 9 | 3 | 16 | 472 |
 
 | Batch | Mean years played | Mean year of a mid-term impeachment |
 | --- | --- | --- |
 | careful (agriculture) | 6.71 | 4.93 |
-| farmer (agriculture) | 7.47 | 3.80 |
-| farmer (agriculture, marathon) | 55.55 | 6.63 |
+| farmer (agriculture) | 7.17 | 3.52 |
+| farmer (agriculture, marathon) | 57.93 | 3.52 |
 
 ### The arc of a whole tree
 
@@ -228,59 +230,59 @@ bought it had bought it.
 
 | Node | Cost (bushels) | Games that bought it | Median year | Mean year |
 | --- | --- | --- | --- | --- |
-| Ox-drawn plough | 250 | 301 | 10 | 9.5 |
-| Fallow fields | 310 | 338 | 1 | 1.1 |
-| Granaries | 390 | 315 | 5 | 4.9 |
-| Heavy plough | 490 | 293 | 11 | 11.3 |
-| Green manuring | 610 | 316 | 2 | 2.1 |
-| Draft teams | 760 | 290 | 13 | 12.7 |
-| Sealed silos | 950 | 306 | 7 | 6.6 |
-| Manured fields | 1190 | 315 | 3 | 3.2 |
-| Row sowing | 1490 | 287 | 14 | 14.0 |
-| Iron ploughshares | 1860 | 286 | 15 | 15.3 |
-| Underground cellars | 2330 | 303 | 8 | 7.9 |
-| Irrigated terraces | 2910 | 312 | 4 | 4.4 |
-| Seed drill | 3640 | 286 | 17 | 16.6 |
-| Harvest crews | 4540 | 283 | 18 | 17.7 |
-| Temple vaults | 5680 | 297 | 9 | 9.4 |
-| Crop rotation | 7100 | 299 | 7 | 7.1 |
-| Garden seed | 8870 | 281 | 19 | 19.0 |
-| Ox-driven threshers | 11090 | 279 | 20 | 20.6 |
-| Undercrofts | 13870 | 291 | 13 | 13.2 |
-| Royal gardens | 17330 | 283 | 16 | 17.5 |
-| Water lifts | 21660 | 271 | 25 | 25.7 |
-| Flood farming | 27080 | 270 | 29 | 28.7 |
-| Irrigation canals | 33850 | 267 | 34 | 34.2 |
-| Selected seed corn | 42310 | 265 | 39 | 39.6 |
-| Nippur almanac | 52890 | 262 | 45 | 45.8 |
+| Ox-drawn plough | 250 | 288 | 10 | 9.4 |
+| Fallow fields | 310 | 342 | 2 | 2.1 |
+| Granaries | 390 | 288 | 5 | 5.3 |
+| Heavy plough | 490 | 282 | 12 | 11.6 |
+| Green manuring | 610 | 291 | 3 | 3.2 |
+| Draft teams | 760 | 282 | 13 | 13.1 |
+| Sealed silos | 950 | 282 | 7 | 7.2 |
+| Manured fields | 1190 | 282 | 4 | 4.4 |
+| Row sowing | 1490 | 282 | 15 | 14.6 |
+| Iron ploughshares | 1860 | 282 | 16 | 15.9 |
+| Underground cellars | 2330 | 282 | 9 | 8.7 |
+| Irrigated terraces | 2910 | 282 | 6 | 6.1 |
+| Seed drill | 3640 | 282 | 17 | 17.1 |
+| Harvest crews | 4540 | 282 | 18 | 18.3 |
+| Temple vaults | 5680 | 282 | 11 | 10.9 |
+| Crop rotation | 7100 | 282 | 9 | 9.9 |
+| Garden seed | 8870 | 282 | 20 | 19.8 |
+| Ox-driven threshers | 11090 | 282 | 22 | 21.8 |
+| Undercrofts | 13870 | 282 | 15 | 16.3 |
+| Royal gardens | 17330 | 282 | 24 | 21.8 |
+| Water lifts | 21660 | 282 | 28 | 28.4 |
+| Flood farming | 27080 | 282 | 31 | 31.6 |
+| Irrigation canals | 33850 | 282 | 37 | 37.2 |
+| Selected seed corn | 42310 | 282 | 43 | 42.8 |
+| Nippur almanac | 52890 | 282 | 49 | 49.2 |
 
-Of the 500 farmer games, 262 bought every rung; the median completion year is 45, the
-mean 45.8 and the range 40-56. 160 games bought nothing at all, and 5,726 of the
-7,296 rungs ever bought fell in the first twenty years of the batches.
+Of the 500 farmer games, 282 bought every rung; the median completion year is 49, the
+mean 49.2 and the range 43-61. 158 games bought nothing at all, and 5,199 of the
+7,131 rungs ever bought fell in the first twenty years of the batches.
 
 - **The flag alone changes nothing.** The careful ruler who declines every offer
   plays the classic term exactly — the same 175 completed games, the same verdict
   counts, the same mean year of an impeachment — because research changes the
   figures the rules are handed, never the events the seed produces.
-- **The cheap rungs pay for themselves quickly.** The farmer completes 296 terms
+- **The cheap rungs pay for themselves quickly.** The farmer completes 282 terms
   where the careful ruler completes 175: the six opening rungs cost 2,810 bushels
   between them and give two bushels to every planted acre, half the rats' share and
   two more acres a person can tend, and the opening decade is long enough to earn all
   of that back. Research pays best when it is early and cheap.
 - **The whole tree is the work of a reign.** The last five rungs cost 177,790 of the
-  263,450 bushels and are paid for between the twenty-fifth and the forty-fifth year
+  263,450 bushels and are paid for between the twenty-third and the sixty-first year
   of the plan: it is the ladder, not the shape of the tree, that sets the pace, and
-  262 of the 500 marathons finish it.
-- **The pace falls off on purpose.** 5,726 rungs are bought in the first twenty years
-  of the batches, 1,217 in the next twenty and 353 in the third, and nothing at all
+  282 of the 500 marathons finish it.
+- **The pace falls off on purpose.** 5,199 rungs are bought in the first twenty years
+  of the batches, 1,400 in the next twenty and 531 in the third, and a single one
   after the sixtieth year: the cheap end of the ladder is climbed by everyone who
   survives, the costly end only by the rich.
-- **A century is where it pays.** In the marathon the same farmer completes 262
+- **A century is where it pays.** In the marathon the same farmer completes 282
   terms, against the single careful game of 500 that survives the same century: a
   raised harvest and granaries the rats cannot rob are what a growing city needs
   once the fixed 1000 acres stop feeding it.
-- **The tree does not buy land.** 160 games never afford a rung, and of the 262 games
-  that reach the end of the century 240 are still scored a national fink, because the
+- **The tree does not buy land.** 158 games never afford a rung, and of the 282 games
+  that reach the end of the century 254 are still scored a national fink, because the
   verdict measures acres per person and a century of good harvests doubles the
   population while the original acres stand still. The tree is what pays for the
   acres a ruler must buy to keep the verdict, not a substitute for buying them.
@@ -312,8 +314,8 @@ rung of whichever one is on offer.
 
 | Batch | Mean years played | Mean year of a mid-term impeachment |
 | --- | --- | --- |
-| healer (health, marathon) | 7.55 | 7.55 |
-| split (agriculture + health, marathon) | 25.69 | 25.69 |
+| healer (health, marathon) | 7.71 | 7.71 |
+| split (agriculture + health, marathon) | 24.18 | 24.18 |
 
 ### How far a reign climbs the tree
 
@@ -322,25 +324,25 @@ ever paid for a measure, and the mean and the median year they paid for it in.
 
 | Measure | Cost | Games | Mean year | Median year |
 | --- | --- | --- | --- | --- |
-| Wells | 100 | 137 | 7.7 | 8 |
-| Herb gatherers | 124 | 240 | 4.1 | 4 |
-| Midwives | 153 | 46 | 12.6 | 13 |
-| Milled grain | 190 | 339 | 1.1 | 1 |
-| Drained streets | 235 | 79 | 10.0 | 10 |
-| Physicians | 290 | 176 | 5.7 | 6 |
-| Wet nurses | 359 | 23 | 14.8 | 15 |
-| Kitchen gardens | 444 | 301 | 2.1 | 2 |
-| Brick-lined drains | 550 | 54 | 11.8 | 12 |
-| Apothecaries | 680 | 131 | 7.1 | 7 |
-| Milk herds | 842 | 11 | 16.6 | 16 |
-| Oil presses | 1041 | 256 | 3.3 | 3 |
-| Aqueducts | 1288 | 29 | 13.5 | 13 |
-| Doctors | 1594 | 87 | 9.0 | 9 |
-| Birthing houses | 1972 | 9 | 18.1 | 18 |
-| Fish ponds | 2440 | 147 | 5.1 | 5 |
-| Healing houses | 3019 | 31 | 11.6 | 11 |
-| Foundling home | 3736 | 2 | 21.5 | 21.5 |
-| Smokehouses | 4623 | 24 | 9.2 | 8 |
+| Wells | 100 | 130 | 8.7 | 9 |
+| Herb gatherers | 124 | 245 | 5.1 | 5 |
+| Midwives | 153 | 48 | 13.4 | 14 |
+| Milled grain | 190 | 342 | 2.1 | 2 |
+| Drained streets | 235 | 87 | 10.8 | 11 |
+| Physicians | 290 | 177 | 6.5 | 7 |
+| Wet nurses | 359 | 23 | 16.1 | 16 |
+| Kitchen gardens | 444 | 301 | 3.1 | 3 |
+| Brick-lined drains | 550 | 56 | 12.8 | 13 |
+| Apothecaries | 680 | 138 | 7.9 | 8 |
+| Milk herds | 842 | 19 | 17.7 | 18 |
+| Oil presses | 1041 | 250 | 4.3 | 4 |
+| Aqueducts | 1288 | 37 | 14.6 | 14 |
+| Doctors | 1594 | 90 | 9.9 | 10 |
+| Birthing houses | 1972 | 10 | 19.1 | 19 |
+| Fish ponds | 2440 | 135 | 6.3 | 5 |
+| Healing houses | 3019 | 40 | 13.4 | 12 |
+| Foundling home | 3736 | 4 | 24.2 | 23.5 |
+| Smokehouses | 4623 | 25 | 12.6 | 9 |
 | Temple hospital | 5720 | 0 | — | — |
 | Palace nursery | 7078 | 0 | — | — |
 | Breweries | 8758 | 0 | — | — |
@@ -356,47 +358,47 @@ farming tree keeps its city alive.
 
 | Measure | Cost | Games | Mean year | Median year |
 | --- | --- | --- | --- | --- |
-| Wells | 100 | 304 | 9.4 | 10 |
-| Herb gatherers | 124 | 295 | 11.2 | 11 |
-| Midwives | 153 | 293 | 12.7 | 13 |
-| Milled grain | 190 | 293 | 14.0 | 14 |
-| Drained streets | 235 | 293 | 15.3 | 15 |
-| Physicians | 290 | 293 | 16.7 | 17 |
-| Wet nurses | 359 | 293 | 17.9 | 18 |
-| Kitchen gardens | 444 | 293 | 19.1 | 19 |
-| Brick-lined drains | 550 | 291 | 20.3 | 20 |
-| Apothecaries | 680 | 290 | 21.5 | 22 |
-| Milk herds | 842 | 289 | 22.7 | 23 |
-| Oil presses | 1041 | 287 | 23.9 | 24 |
-| Aqueducts | 1288 | 285 | 25.0 | 25 |
-| Doctors | 1594 | 283 | 26.1 | 26 |
-| Birthing houses | 1972 | 281 | 27.3 | 27 |
-| Fish ponds | 2440 | 273 | 28.4 | 28 |
-| Healing houses | 3019 | 264 | 29.5 | 29 |
-| Foundling home | 3736 | 256 | 30.6 | 31 |
-| Smokehouses | 4623 | 251 | 31.6 | 32 |
-| Temple hospital | 5720 | 248 | 32.6 | 33 |
-| Palace nursery | 7078 | 247 | 33.7 | 34 |
-| Breweries | 8758 | 242 | 34.7 | 35 |
-| Children's gardens | 10836 | 223 | 36.0 | 36 |
-| Date presses | 13408 | 180 | 38.0 | 38 |
-| House of Life | 16590 | 80 | 40.4 | 40 |
+| Wells | 100 | 289 | 9.0 | 10 |
+| Herb gatherers | 124 | 284 | 11.4 | 12 |
+| Midwives | 153 | 282 | 13.0 | 13 |
+| Milled grain | 190 | 282 | 14.5 | 15 |
+| Drained streets | 235 | 282 | 15.8 | 16 |
+| Physicians | 290 | 282 | 17.2 | 17 |
+| Wet nurses | 359 | 282 | 18.5 | 19 |
+| Kitchen gardens | 444 | 282 | 19.7 | 20 |
+| Brick-lined drains | 550 | 282 | 20.9 | 21 |
+| Apothecaries | 680 | 281 | 22.1 | 22 |
+| Milk herds | 842 | 280 | 23.3 | 23 |
+| Oil presses | 1041 | 280 | 24.5 | 25 |
+| Aqueducts | 1288 | 280 | 25.7 | 26 |
+| Doctors | 1594 | 275 | 26.8 | 27 |
+| Birthing houses | 1972 | 271 | 27.9 | 28 |
+| Fish ponds | 2440 | 266 | 29.0 | 29 |
+| Healing houses | 3019 | 261 | 30.1 | 30 |
+| Foundling home | 3736 | 257 | 31.1 | 31 |
+| Smokehouses | 4623 | 248 | 32.2 | 32 |
+| Temple hospital | 5720 | 244 | 33.2 | 33 |
+| Palace nursery | 7078 | 243 | 34.2 | 34 |
+| Breweries | 8758 | 233 | 35.4 | 35 |
+| Children's gardens | 10836 | 199 | 36.9 | 37 |
+| Date presses | 13408 | 124 | 38.9 | 39 |
+| House of Life | 16590 | 37 | 41.5 | 42 |
 
-- **The health tree is not a way to live longer.** The healer's mean reign is 7.55
+- **The health tree is not a way to live longer.** The healer's mean reign is 7.71
   years and it completes no century of 500: a city that only heals starves, because
   no measure of this tree touches a field. Handing a healer the whole tree from the
   first year does not save it either — even that city is impeached in the twelfth
   year on the median, against the eleventh of the careful ruler.
 - **A measure cannot feed a city, and the cheap ones are all a short reign affords.**
   A typical healer spends its few years on the first rungs of the four branches —
-  milled grain in 339 games, kitchen gardens in 301, herb gatherers in 240 — and the
+  milled grain in 342 games, kitchen gardens in 301, herb gatherers in 245 — and the
   deep measures are never reached at all: the deepest one ever bought is the
-  smokehouses, in 24 games of 500, and the capstone is out of reach of every healer.
+  smokehouses, in 25 games of 500, and the capstone is out of reach of every healer.
 - **The one research moment is the real price of a second programme.** The splitter
-  buys 13.3 health measures for every 9.5 farming rungs (medians 19 and 13), because
+  buys 12.7 health measures for every 8.7 farming rungs (medians 18 and 12), because
   the cheap measures crowd out the cheap technologies that raise the harvest — and it
-  completes no century either, dying in the twenty-sixth year on average where the
-  farmer alone completes 262 of 500. It does reach the capstone now and then — 80 of
+  completes no century either, dying in the twenty-fourth year on average where the
+  farmer alone completes 282 of 500. It does reach the capstone now and then — 37 of
   the 500 games buy the House of Life — but a ruler who wants both programmes must
   still choose which of them will be late.
 - **The plague is small change.** The water branch takes the plague from 20 years in

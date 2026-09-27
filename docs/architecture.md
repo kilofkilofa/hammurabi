@@ -77,8 +77,8 @@ hammurabi/
 | `health.py` | The optional health rule set as pure data: the twenty-five measures in four branches and the House of Life, each with its price, prerequisites and effect, and `healers`, which folds the unlocked measures into `Health` — the survivor share, the plague resistance and the birth rate take the best value unlocked and the bushels that feed a person the smallest. No I/O, no state, no RNG. | `config`, `models`, `tech` |
 | `rules.py` | Pure functions: land price, harvest yield, rat loss, immigration, plague, people fed, births, starvation, impeachment, input validation, the year's spare grain for research and the final verdict. Both rule sets enter as keyword arguments that default to the classic values. | `config`, `models`, `random_source` |
 | `random_source.py` | The RNG seam: a `RandomSource` protocol (`random`, `randint`) plus the `SeededRandom` implementation backed by `random.Random`. Tests inject a scripted stub. | — |
-| `game.py` | `Game` engine: owns a `GameState`, runs the yearly loop, applies rules, asks for one research a year when a rule set is on (the offer covering every tree in play, paid out of the year's spare grain, never the food of the city or the seed of its fields), updates statistics, decides game over. Also defines the `UI` protocol that the engine consumes. | `config`, `models`, `rules`, `tech`, `health` |
-| `ui.py` | `ConsoleUI`: renders reports via `rich`, asks the player for the yearly numbers and for a node when the trees offer one, prints error, impeachment and end-of-term messages. Implements the `UI` protocol from `game.py`; the engine validates every answer, so no rule knowledge ends up here. | `rich`, `game`, `models`, `tech` |
+| `game.py` | `Game` engine: owns a `GameState`, runs the yearly loop, applies rules, asks for one research at the top of a year when a rule set is on and the year is not the first (the offer covering every tree in play, paid out of the year's spare grain — the store the report has just shown, less the food of the city and the seed of its fields), reports the year's crop where it lands, reports a research budget that can pay for nothing in one line instead of asking, updates statistics, decides game over. Also defines the `UI` protocol that the engine consumes. | `config`, `models`, `rules`, `tech`, `health` |
+| `ui.py` | `ConsoleUI`: renders reports via `rich`, asks the player for the yearly numbers and for a node when the trees offer one, reports the year's crop where it lands, prints error, impeachment and end-of-term messages. Implements the `UI` protocol from `game.py`; the engine validates every answer, so no rule knowledge ends up here. | `rich`, `game`, `models`, `tech` |
 | `main.py` | Entry point: parse args (`--seed`, `--years`, `--agriculture`, `--health`, `--all`), construct the starting state, RNG and UI, run `Game`. | `game`, `models`, `ui`, `random_source` |
 | `__main__.py` | Allows `python -m hammurabi`. | `main` |
 
@@ -148,12 +148,15 @@ trade is either a purchase or a sale.
 year += 1
 report (starved, immigrants, children) -> the announced arrivals join the city
 plague? (the public health decides the share) -> status (population, acres, yield, rats, store)
+research? (a rule set is on and the year is not the first: one node of the trees in
+           play, paid out of the year's spare grain — the store the status has just
+           shown, less the food the people need and the seed the land needs — and a
+           year the surplus cannot cover reports that empty budget in one line)
 land price -> buy land --(nothing bought)--> sell land
 feed -> starvation and the running average -> the population shrinks
 plant seed (land, seed and labour checked against the farming technology)
 harvest yield -> rats raid the pre-harvest store -> store += harvest - rats
-research? (a rule set is on: one node of the trees in play, paid out of the year's
-           spare grain — what is left once the food and the seed are set aside)
+harvest report (with a rule set on: the crop, the rats and the store the crop leaves)
 immigrants for the next report
 children for the next report (health rule set; none in a year the city could not feed)
 plague roll for the next year (the water branch shifts the offset)
@@ -162,17 +165,30 @@ term over? -> the undrawn closing report adds the last immigrants and plague,
 then the term is scored
 ```
 
-The research step is one question a year whatever the flags: `tech.enabled_trees`
-maps `state.agriculture` and `state.health` to the trees they play, `tech.offers`
-gathers what each of them can sell, and every offer carries the label of the
-programme that made it, which is how the UI can tell the two tables apart. The price
-must fit in the year's spare grain, which `rules.spare_grain` works out from the
-store, the people to be fed and the acres to be sown; the engine writes that figure
-to `state.spare_bushels`, offers nothing above it and the UI quotes it with the
-question, so the bread of the city and the seed of its fields are never on the
-table. Both folds are read at the top of the year, so a node bought in December
-shows in the figures of the following year — the plague roll included, which is
-drawn after the research of the year.
+The research step is one question opening the year, whatever the flags, from the
+second year of a term on (`config.FIRST_RESEARCH_YEAR`), so a rule set never touches
+the vintage opening year: `tech.enabled_trees` maps `state.agriculture` and
+`state.health` to the trees they play, `tech.offers` gathers what each of them can
+sell, and every offer carries the label of the programme that made it, which is how
+the UI can tell the two tables apart. The price must fit in the year's spare grain,
+which `rules.spare_grain` works out from the store, the people to be fed and the acres
+to be sown; the engine writes that figure to `state.spare_bushels`, offers nothing
+above it and the UI quotes it with the question, so the bread of the city and the seed
+of its fields are never on the table. A year whose surplus cannot cover a rung is not
+asked about one — no question with no acceptable answer is ever put — but it is not
+passed over in silence either: `ui.show_no_research` prints the store the budget was
+measured from and says the food of the people and the seed of the fields are set aside
+first, so a rule-set year always shows its research moment. Because the question is put
+just after the status
+and before the land trade, the feeding and the sowing, the store it quotes is the one
+the report has just shown — grain the granary really holds at that moment, never the
+surplus the year might still earn. The crop of the year is reported where it lands
+instead: with a rule set in play `ui.show_harvest` carries the harvest, the rats and
+the store the crop leaves, between the sowing and the newcomers, so the grain the
+following year's question is paid from can be checked against the granary; a game
+without a rule set reports no crop and keeps the vintage transcript. Both folds are
+read at the top of the year, so a node bought now shows in the figures of the following
+year — the plague roll included, which is drawn later in the year it was bought.
 
 `Game.play()` repeats this until the term named by `state.term_years` has been
 played or the ruler is impeached, then stores the outcome in `state.verdict` and
@@ -294,8 +310,12 @@ of leaving a stray process spinning a core.
   `1.3.0` the fifteen-node tree whose price ladder spreads the programme over a
   lifetime (M8), `1.4.0` the optional public-health rule set (M9), `1.5.0` the
   twenty-five-node trees whose quarter-step ladders spread the programme over a
-  reign (M10) and `1.5.1` the `--all` master toggle over the optional rule sets (a
-  patch: it adds a flag, not a rule). Any later change needs a new patch or minor
+  reign (M10), `1.5.1` the `--all` master toggle over the optional rule sets (a
+  patch: it adds a flag, not a rule) and `1.5.2` the research question opening the
+  year, its budget drawn from the store the report has just shown, with the year's
+  crop reported where it lands (a patch: it moves one step of the optional rule sets
+  and the line that reports the crop, and leaves the classic game, the spare-grain
+  rule and both trees untouched). Any later change needs a new patch or minor
   version, never an edit of an existing release.
 - Nothing built is committed: `.venv/`, `*.egg-info/`, `dist/` and `build/` are
   ignored and recreated by `pip install -e ".[dev]"`.
