@@ -60,7 +60,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=(
             "play the optional agriculture rule set: research farming "
-            "technologies out of the grain in store"
+            "technologies out of the year's spare grain"
         ),
     )
     parser.add_argument(
@@ -68,7 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=(
             "play the optional health rule set: research public-health measures "
-            "out of the grain in store"
+            "out of the year's spare grain"
         ),
     )
     parser.add_argument(

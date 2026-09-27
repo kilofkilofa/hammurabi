@@ -23,9 +23,11 @@ lets the ruler pay for one node of the matching tree — :mod:`hammurabi.tech` f
 farming one, :mod:`hammurabi.health` for the public-health one — a year; the unlocked
 nodes are read into farming and health settings at the top of a year, so research
 takes effect in the year that follows. The research moment is the same for both rule
-sets, so with both in play one question a year covers both trees. Research costs no
-random draw, so a seed produces exactly the same events with and without a rule set,
-and a bonus only ever changes the figures the rules are handed.
+sets, so with both in play one question a year covers both trees, and either way the
+price must fit in the year's spare grain — the store less the food the people need
+and the seed the land needs — so the bread of the city can never be invested.
+Research costs no random draw, so a seed produces exactly the same events with and
+without a rule set, and a bonus only ever changes the figures the rules are handed.
 """
 
 from __future__ import annotations
@@ -166,7 +168,8 @@ class Game:
         newcomers in, roll the plague for the year to come and finally tally the
         hunger. With a rule set in play the ruler may also start one research between
         the harvest and the newcomers, because research is paid out of the grain the
-        year actually produced.
+        year actually produced — but only out of what is spare once the food of the
+        city and the seed of its fields are set aside.
 
         The population is only reduced in that last step, exactly as in the listing
         (``555 P=C``). Sowing, the immigration formula and the births the next report
@@ -188,7 +191,7 @@ class Game:
         fed = self._feed_people(health_settings)
         acres_planted = self._plant_grain(settings)
         self._harvest_and_rats(acres_planted, settings)
-        self._research()
+        self._research(settings, health_settings)
         self._invite_immigrants()
         self._bear_children(health_settings, fed)
         self._roll_plague_for_next_year(health_settings)
@@ -366,22 +369,35 @@ class Game:
         state.bushels += rules.harvest(acres_planted, state.yield_per_acre)
         state.bushels -= state.rats_ate_this_year
 
-    def _research(self) -> None:
-        """Let the ruler pay for one node of the trees in play.
+    def _research(self, settings: Agriculture, health_settings: Health) -> None:
+        """Let the ruler pay for one node of the trees in play out of the surplus.
 
-        The question is put only when a rule set is in play, at least one node is open
-        and the grain left after the harvest covers it, so a ruler who cannot afford
-        anything is never asked a question they cannot answer. When both rule sets are
-        played, the table covers both trees, because a year holds one research moment
-        however many programmes it serves and every node on it says which programme
-        offers it. The cost leaves the store at once and the node is unlocked for the
-        years that follow; answering ``None`` leaves the grain alone.
+        The price must fit in the **spare grain of the year**, not in the store: the
+        food the people need at the public health in force and the seed the land
+        needs for the next sowing are set aside first, so the bread of the city and
+        the seed of its fields can never be invested. That figure is written to
+        ``state.spare_bushels``, which is what the question reports; the question is
+        put only when a rule set is in play, at least one node is open and the
+        surplus covers it, so a ruler who cannot afford anything is never asked a
+        question they cannot answer. When both rule sets are played, the table
+        covers both trees, because a year holds one research moment however many
+        programmes it serves and every node on it says which programme offers it.
+        The cost leaves the store at once and the node is unlocked for the years
+        that follow; answering ``None`` leaves the grain alone.
         """
         state = self.state
         trees = tech.enabled_trees(state)
         if not trees:
             return
-        choices = tech.offers(trees, state.unlocked, bushels=state.bushels)
+        state.spare_bushels = rules.spare_grain(
+            state.bushels,
+            state.population,
+            acres=state.acres,
+            bushels_per_person=health_settings.bushels_per_person,
+            acres_per_seed=settings.acres_per_seed,
+            acres_per_worker=settings.acres_per_worker,
+        )
+        choices = tech.offers(trees, state.unlocked, bushels=state.spare_bushels)
         if not choices:
             return
 

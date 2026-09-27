@@ -340,7 +340,7 @@ def test_the_intro_announces_the_agriculture_rule_set() -> None:
     text = render(buffer)
     assert "This is the agriculture rule set" in text
     assert f"may also pay for one of the {len(tech.TECH_TREE)}" in text
-    assert "technologies out of the grain in store" in text
+    assert "once the people are fed" in text
 
 
 def test_the_classic_intro_announces_no_rule_set() -> None:
@@ -356,7 +356,9 @@ def test_the_research_question_lists_what_is_on_offer() -> None:
     ui, buffer, questions = _ui("1")
     stores = config.TECH_COSTS
     choices = tech.FARMING.offers(frozenset(), bushels=stores["fallow"])
-    state = GameState(year=2, bushels=stores["fallow"])
+    state = GameState(
+        year=2, bushels=stores["fallow"], spare_bushels=stores["fallow"]
+    )
 
     assert ui.ask_research(state, choices) == "plough"
 
@@ -364,6 +366,11 @@ def test_the_research_question_lists_what_is_on_offer() -> None:
     assert "Ox-drawn plough" in text
     assert "Fallow fields" in text
     assert f"{stores['plough']} bushels" in text
+    # The budget is on show, because the table holds only what it can pay for.
+    assert (
+        f"You may spend {stores['fallow']} of your {stores['fallow']} bushels"
+        in text
+    )
     assert "Which technology do you wish to research?" in text
     # The hint is part of the question handed to the reader, like the four
     # classic questions; see ``test_every_question_repeats_the_figures...``.
@@ -403,6 +410,18 @@ def test_answering_zero_researches_nothing() -> None:
 
     assert ui.ask_research(GameState(bushels=plough), choices) is None
     assert "answer 0 to research nothing" in questions[0]
+
+
+def test_the_research_question_quotes_what_may_be_spent() -> None:
+    """The hint names the year's surplus, which is all the question may cost."""
+    ui, _, questions = _ui("0")
+    plough = config.TECH_COSTS["plough"]
+    choices = tech.FARMING.offers(frozenset(), bushels=plough)
+    state = GameState(bushels=10_000, spare_bushels=plough)
+
+    assert ui.ask_research(state, choices) is None
+
+    assert f"you have 10000 bushels and may spend {plough} of them" in questions[0]
 
 
 def test_a_number_outside_the_list_is_handed_back_to_the_engine() -> None:
@@ -484,7 +503,7 @@ def test_the_intro_announces_the_health_rule_set() -> None:
     # A phrase that fits between two line breaks of the panel, so the assertion
     # does not have to know where ``rich`` wrapped the sentence.
     assert "public-health measures" in text
-    assert "out of the grain in store" in text
+    assert "once the people are fed" in text
 
 
 def test_the_intro_announces_both_rule_sets_when_both_are_played() -> None:
@@ -499,8 +518,8 @@ def test_the_intro_announces_both_rule_sets_when_both_are_played() -> None:
         f"farming technologies and the {health.HEALTH.size} public-health measures"
         in text
     )
-    assert "holds one research moment however many programmes it serves" in text
-    assert "a whole programme is the work of a lifetime" in text
+    assert "one research moment however many" in text
+    assert "is the work of a lifetime" in text
 
 
 def test_the_report_announces_the_children_when_health_is_on() -> None:

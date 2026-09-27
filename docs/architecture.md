@@ -73,11 +73,11 @@ hammurabi/
 | --- | --- | --- |
 | `config.py` | Named constants for every tunable rule (start values, prices, thresholds, rates, and the two research price ladders with their rates and bonuses). No logic. | — |
 | `models.py` | `GameState` dataclass holding the term length, the rule-set flags, the unlocked technologies, the year, population, acres, bushels and the running statistics; the `Agriculture` and `Health` settings the rules are handed; small enums such as `Verdict`. | `config` |
-| `tech.py` | The research machinery the optional rule sets share (`Node`, `TechTree`, `Offer`, `enabled_trees`, `offers`) plus the agriculture tree as pure data: the fifteen nodes in four branches and a capstone, each with its price, prerequisites and effect, and `settings`, which folds the unlocked nodes into `Agriculture` — the harvest bonuses add up and the best rate unlocked wins. No I/O, no state, no RNG. | `config`, `models` |
-| `health.py` | The optional health rule set as pure data: the nineteen measures in four branches and the House of Life, each with its price, prerequisites and effect, and `healers`, which folds the unlocked measures into `Health` — the survivor share, the plague resistance and the birth rate take the best value unlocked and the bushels that feed a person the smallest. No I/O, no state, no RNG. | `config`, `models`, `tech` |
-| `rules.py` | Pure functions: land price, harvest yield, rat loss, immigration, plague, people fed, births, starvation, impeachment, input validation and the final verdict. Both rule sets enter as keyword arguments that default to the classic values. | `config`, `models`, `random_source` |
+| `tech.py` | The research machinery the optional rule sets share (`Node`, `TechTree`, `Offer`, `enabled_trees`, `offers`) plus the agriculture tree as pure data: the twenty-five nodes in four branches and a capstone, each with its price, prerequisites and effect, and `settings`, which folds the unlocked nodes into `Agriculture` — the harvest bonuses add up and the best rate unlocked wins. No I/O, no state, no RNG. | `config`, `models` |
+| `health.py` | The optional health rule set as pure data: the twenty-five measures in four branches and the House of Life, each with its price, prerequisites and effect, and `healers`, which folds the unlocked measures into `Health` — the survivor share, the plague resistance and the birth rate take the best value unlocked and the bushels that feed a person the smallest. No I/O, no state, no RNG. | `config`, `models`, `tech` |
+| `rules.py` | Pure functions: land price, harvest yield, rat loss, immigration, plague, people fed, births, starvation, impeachment, input validation, the year's spare grain for research and the final verdict. Both rule sets enter as keyword arguments that default to the classic values. | `config`, `models`, `random_source` |
 | `random_source.py` | The RNG seam: a `RandomSource` protocol (`random`, `randint`) plus the `SeededRandom` implementation backed by `random.Random`. Tests inject a scripted stub. | — |
-| `game.py` | `Game` engine: owns a `GameState`, runs the yearly loop, applies rules, asks for one research a year when a rule set is on (the offer covering every tree in play), updates statistics, decides game over. Also defines the `UI` protocol that the engine consumes. | `config`, `models`, `rules`, `tech`, `health` |
+| `game.py` | `Game` engine: owns a `GameState`, runs the yearly loop, applies rules, asks for one research a year when a rule set is on (the offer covering every tree in play, paid out of the year's spare grain, never the food of the city or the seed of its fields), updates statistics, decides game over. Also defines the `UI` protocol that the engine consumes. | `config`, `models`, `rules`, `tech`, `health` |
 | `ui.py` | `ConsoleUI`: renders reports via `rich`, asks the player for the yearly numbers and for a node when the trees offer one, prints error, impeachment and end-of-term messages. Implements the `UI` protocol from `game.py`; the engine validates every answer, so no rule knowledge ends up here. | `rich`, `game`, `models`, `tech` |
 | `main.py` | Entry point: parse args (`--seed`, `--years`, `--agriculture`, `--health`), construct the starting state, RNG and UI, run `Game`. | `game`, `models`, `ui`, `random_source` |
 | `__main__.py` | Allows `python -m hammurabi`. | `main` |
@@ -152,7 +152,8 @@ land price -> buy land --(nothing bought)--> sell land
 feed -> starvation and the running average -> the population shrinks
 plant seed (land, seed and labour checked against the farming technology)
 harvest yield -> rats raid the pre-harvest store -> store += harvest - rats
-research? (a rule set is on: one node of the trees in play, paid from the store)
+research? (a rule set is on: one node of the trees in play, paid out of the year's
+           spare grain — what is left once the food and the seed are set aside)
 immigrants for the next report
 children for the next report (health rule set; none in a year the city could not feed)
 plague roll for the next year (the water branch shifts the offset)
@@ -164,10 +165,14 @@ then the term is scored
 The research step is one question a year whatever the flags: `tech.enabled_trees`
 maps `state.agriculture` and `state.health` to the trees they play, `tech.offers`
 gathers what each of them can sell, and every offer carries the label of the
-programme that made it, which is how the UI can tell the two tables apart. Both
-folds are read at the top of the year, so a node bought in December shows in the
-figures of the following year — the plague roll included, which is drawn after the
-research of the year.
+programme that made it, which is how the UI can tell the two tables apart. The price
+must fit in the year's spare grain, which `rules.spare_grain` works out from the
+store, the people to be fed and the acres to be sown; the engine writes that figure
+to `state.spare_bushels`, offers nothing above it and the UI quotes it with the
+question, so the bread of the city and the seed of its fields are never on the
+table. Both folds are read at the top of the year, so a node bought in December
+shows in the figures of the following year — the plague roll included, which is
+drawn after the research of the year.
 
 `Game.play()` repeats this until the term named by `state.term_years` has been
 played or the ruler is impeached, then stores the outcome in `state.verdict` and
@@ -285,9 +290,11 @@ of leaving a stray process spinning a core.
   and the package can never disagree; `tests/test_packaging.py` guards it.
 - Version policy: `0.x` while the target outcome in `plan.md` §6 was incomplete;
   `1.0.0` marks that outcome being met (the end of M5), `1.1.0` adds the
-  documented term choice (M6), `1.2.0` the optional agriculture rule set (M7) and
+  documented term choice (M6), `1.2.0` the optional agriculture rule set (M7),
   `1.3.0` the fifteen-node tree whose price ladder spreads the programme over a
-  lifetime (M8). Any later change needs a new patch or minor version, never an
+  lifetime (M8), `1.4.0` the optional public-health rule set (M9) and `1.5.0` the
+  twenty-five-node trees whose quarter-step ladders spread the programme over a
+  reign (M10). Any later change needs a new patch or minor version, never an
   edit of an existing release.
 - Nothing built is committed: `.venv/`, `*.egg-info/`, `dist/` and `build/` are
   ignored and recreated by `pip install -e ".[dev]"`.

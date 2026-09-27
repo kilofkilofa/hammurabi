@@ -10,18 +10,21 @@ merely folds the unlocked nodes into the
 the public-health tree of :mod:`hammurabi.health` folds its own nodes into
 ``Health`` the same way.
 
-Fifteen nodes stand in four branches that meet in a capstone. The ox-drawn plough
-leads to the heavy plough and the seed drill, the fallow fields to manuring,
-rotation, flood farming and the selected seed corn, the granaries to the sealed
-silos and the temple vaults, and the tools of the field hands to the draft teams,
-the iron ploughshares and the harvest crews. The **Nippur almanac**, which reads
-the flood from the stars, needs the deepest yield and the best storage at once.
+Twenty-five nodes stand in four branches that meet in a capstone. The ox-drawn
+plough leads through the heavy plough and the row sowing to the seed drill and the
+garden seed, the fallow fields through green manuring, rotation, irrigated terraces,
+royal gardens and flood farming to the irrigation canals and the selected seed corn,
+the granaries through the sealed silos, the cellars and the temple vaults to the
+undercrofts, and the tools of the field hands to the draft teams, the iron
+ploughshares, the harvest crews, the ox-driven threshers and the water lifts. The
+**Nippur almanac**, which reads the flood from the stars, needs the deepest yield and
+the best storage at once.
 
-The prices climb by about a third a step, which is what turns the programme into
-the work of a lifetime: a node a year is what a century in office affords, but the
-later nodes cost what many harvests leave over, so the measured plan of
-``docs/balancing.md`` needs eighty to ninety years to buy the whole tree. Every
-price, rate and bonus is a constant in ``config.py``.
+The prices climb by about a quarter a step, which is what turns the programme into
+the work of a lifetime: more than a node a year is what a century in office affords,
+but the later nodes cost what many harvests leave over, so the measured plan of
+``docs/balancing.md`` needs most of a century to buy the whole tree. Every price,
+rate and bonus is a constant in ``config.py``.
 
 :func:`enabled_trees` is the single place that maps the rule-set flags of
 :class:`~hammurabi.models.GameState` to the trees they play, and :func:`offers`
@@ -63,10 +66,11 @@ NodeT = TypeVar("NodeT", bound=Node)
 class Offer(Generic[NodeT]):
     """One node a ruler may start this year, and the programme offering it.
 
-    The engine offers every node that the trees in play have open and the store can
-    pay for. ``programme`` is the label of the tree the node belongs to, which is
-    how the UI tells a farming node from a public-health one when both rule sets are
-    played at once.
+    The engine offers every node that the trees in play have open and the year's
+    spare grain can pay for — never the grain the city needs for food and seed.
+    ``programme`` is the label of the tree the node belongs to, which is how the UI
+    tells a farming node from a public-health one when both rule sets are played at
+    once.
     """
 
     programme: str
@@ -180,15 +184,17 @@ class TechTree(Generic[NodeT]):
     def can_research(
         self, key: str, *, unlocked: frozenset[str], bushels: int
     ) -> bool:
-        """Return whether ``key`` may be started with ``bushels`` in the store.
+        """Return whether ``key`` may be started with ``bushels`` to spend this year.
 
         A node may be started when its prerequisites are met, it is not unlocked yet
-        and the grain in store covers its cost.
+        and the grain the ruler may spend covers its cost. That grain is the year's
+        spare grain — the store less the food of the city and the seed of its fields
+        — which the engine works out with :func:`hammurabi.rules.spare_grain`.
 
         Args:
             key: Identifier of the node the ruler wants to start.
             unlocked: Keys of the technologies already unlocked.
-            bushels: Grain in store, which the research is paid from.
+            bushels: Grain the ruler may spend on research this year.
 
         Returns:
             ``True`` when the research may start.
@@ -256,8 +262,18 @@ TECH_TREE: tuple[Tech, ...] = (
         delta=TechDelta(rat_divisor=config.TECH_RAT_DIVISOR["granaries"]),
     ),
     Tech(
-        key="manuring",
-        name="Manured fields",
+        key="heavy_plough",
+        name="Heavy plough",
+        requires=frozenset({"plough"}),
+        effect=(
+            f"{config.TECH_ACRES_PER_SEED['plough']} -> "
+            f"{config.TECH_ACRES_PER_SEED['heavy_plough']} acres per bushel of seed"
+        ),
+        delta=TechDelta(acres_per_seed=config.TECH_ACRES_PER_SEED["heavy_plough"]),
+    ),
+    Tech(
+        key="green_manuring",
+        name="Green manuring",
         requires=frozenset({"fallow"}),
         effect=f"+{config.TECH_YIELD_BONUS_PER_NODE} bushel per acre",
         delta=TechDelta(yield_bonus=config.TECH_YIELD_BONUS_PER_NODE),
@@ -275,28 +291,28 @@ TECH_TREE: tuple[Tech, ...] = (
         ),
     ),
     Tech(
-        key="heavy_plough",
-        name="Heavy plough",
-        requires=frozenset({"plough"}),
-        effect=(
-            f"{config.TECH_ACRES_PER_SEED['plough']} -> "
-            f"{config.TECH_ACRES_PER_SEED['heavy_plough']} acres per bushel of seed"
-        ),
-        delta=TechDelta(acres_per_seed=config.TECH_ACRES_PER_SEED["heavy_plough"]),
-    ),
-    Tech(
-        key="rotation",
-        name="Crop rotation",
-        requires=frozenset({"manuring"}),
-        effect=f"+{config.TECH_YIELD_BONUS_PER_NODE} bushel per acre",
-        delta=TechDelta(yield_bonus=config.TECH_YIELD_BONUS_PER_NODE),
-    ),
-    Tech(
         key="silos",
         name="Sealed silos",
         requires=frozenset({"granaries"}),
         effect=f"the rats eat 1/{config.TECH_RAT_DIVISOR['silos']} of their share",
         delta=TechDelta(rat_divisor=config.TECH_RAT_DIVISOR["silos"]),
+    ),
+    Tech(
+        key="manuring",
+        name="Manured fields",
+        requires=frozenset({"green_manuring"}),
+        effect=f"+{config.TECH_YIELD_BONUS_PER_NODE} bushel per acre",
+        delta=TechDelta(yield_bonus=config.TECH_YIELD_BONUS_PER_NODE),
+    ),
+    Tech(
+        key="row_sowing",
+        name="Row sowing",
+        requires=frozenset({"heavy_plough"}),
+        effect=(
+            f"{config.TECH_ACRES_PER_SEED['heavy_plough']} -> "
+            f"{config.TECH_ACRES_PER_SEED['row_sowing']} acres per bushel of seed"
+        ),
+        delta=TechDelta(acres_per_seed=config.TECH_ACRES_PER_SEED["row_sowing"]),
     ),
     Tech(
         key="iron_ploughshares",
@@ -311,28 +327,28 @@ TECH_TREE: tuple[Tech, ...] = (
         ),
     ),
     Tech(
-        key="seed_drill",
-        name="Seed drill",
-        requires=frozenset({"heavy_plough"}),
-        effect=(
-            f"{config.TECH_ACRES_PER_SEED['heavy_plough']} -> "
-            f"{config.TECH_ACRES_PER_SEED['seed_drill']} acres per bushel of seed"
-        ),
-        delta=TechDelta(acres_per_seed=config.TECH_ACRES_PER_SEED["seed_drill"]),
+        key="cellars",
+        name="Underground cellars",
+        requires=frozenset({"silos"}),
+        effect=f"the rats eat 1/{config.TECH_RAT_DIVISOR['cellars']} of their share",
+        delta=TechDelta(rat_divisor=config.TECH_RAT_DIVISOR["cellars"]),
     ),
     Tech(
-        key="flood_farming",
-        name="Flood farming",
-        requires=frozenset({"rotation"}),
+        key="irrigated_terraces",
+        name="Irrigated terraces",
+        requires=frozenset({"manuring"}),
         effect=f"+{config.TECH_YIELD_BONUS_PER_NODE} bushel per acre",
         delta=TechDelta(yield_bonus=config.TECH_YIELD_BONUS_PER_NODE),
     ),
     Tech(
-        key="vaults",
-        name="Temple vaults",
-        requires=frozenset({"silos"}),
-        effect=f"the rats eat 1/{config.TECH_RAT_DIVISOR['vaults']} of their share",
-        delta=TechDelta(rat_divisor=config.TECH_RAT_DIVISOR["vaults"]),
+        key="seed_drill",
+        name="Seed drill",
+        requires=frozenset({"row_sowing"}),
+        effect=(
+            f"{config.TECH_ACRES_PER_SEED['row_sowing']} -> "
+            f"{config.TECH_ACRES_PER_SEED['seed_drill']} acres per bushel of seed"
+        ),
+        delta=TechDelta(acres_per_seed=config.TECH_ACRES_PER_SEED["seed_drill"]),
     ),
     Tech(
         key="harvest_crews",
@@ -347,16 +363,94 @@ TECH_TREE: tuple[Tech, ...] = (
         ),
     ),
     Tech(
+        key="vaults",
+        name="Temple vaults",
+        requires=frozenset({"cellars"}),
+        effect=f"the rats eat 1/{config.TECH_RAT_DIVISOR['vaults']} of their share",
+        delta=TechDelta(rat_divisor=config.TECH_RAT_DIVISOR["vaults"]),
+    ),
+    Tech(
+        key="rotation",
+        name="Crop rotation",
+        requires=frozenset({"irrigated_terraces"}),
+        effect=f"+{config.TECH_YIELD_BONUS_PER_NODE} bushel per acre",
+        delta=TechDelta(yield_bonus=config.TECH_YIELD_BONUS_PER_NODE),
+    ),
+    Tech(
+        key="garden_seed",
+        name="Garden seed",
+        requires=frozenset({"seed_drill"}),
+        effect=(
+            f"{config.TECH_ACRES_PER_SEED['seed_drill']} -> "
+            f"{config.TECH_ACRES_PER_SEED['garden_seed']} acres per bushel of seed"
+        ),
+        delta=TechDelta(acres_per_seed=config.TECH_ACRES_PER_SEED["garden_seed"]),
+    ),
+    Tech(
+        key="ox_threshers",
+        name="Ox-driven threshers",
+        requires=frozenset({"harvest_crews"}),
+        effect=(
+            f"{config.TECH_ACRES_PER_WORKER['harvest_crews']} -> "
+            f"{config.TECH_ACRES_PER_WORKER['ox_threshers']} acres per person"
+        ),
+        delta=TechDelta(
+            acres_per_worker=config.TECH_ACRES_PER_WORKER["ox_threshers"]
+        ),
+    ),
+    Tech(
+        key="undercrofts",
+        name="Undercrofts",
+        requires=frozenset({"vaults"}),
+        effect=(
+            f"the rats eat 1/{config.TECH_RAT_DIVISOR['undercrofts']} of their share"
+        ),
+        delta=TechDelta(rat_divisor=config.TECH_RAT_DIVISOR["undercrofts"]),
+    ),
+    Tech(
+        key="royal_gardens",
+        name="Royal gardens",
+        requires=frozenset({"rotation"}),
+        effect=f"+{config.TECH_YIELD_BONUS_PER_NODE} bushel per acre",
+        delta=TechDelta(yield_bonus=config.TECH_YIELD_BONUS_PER_NODE),
+    ),
+    Tech(
+        key="water_lifts",
+        name="Water lifts",
+        requires=frozenset({"ox_threshers"}),
+        effect=(
+            f"{config.TECH_ACRES_PER_WORKER['ox_threshers']} -> "
+            f"{config.TECH_ACRES_PER_WORKER['water_lifts']} acres per person"
+        ),
+        delta=TechDelta(
+            acres_per_worker=config.TECH_ACRES_PER_WORKER["water_lifts"]
+        ),
+    ),
+    Tech(
+        key="flood_farming",
+        name="Flood farming",
+        requires=frozenset({"royal_gardens"}),
+        effect=f"+{config.TECH_YIELD_BONUS_PER_NODE} bushel per acre",
+        delta=TechDelta(yield_bonus=config.TECH_YIELD_BONUS_PER_NODE),
+    ),
+    Tech(
+        key="irrigation_canals",
+        name="Irrigation canals",
+        requires=frozenset({"flood_farming"}),
+        effect=f"+{config.TECH_YIELD_BONUS_PER_NODE} bushel per acre",
+        delta=TechDelta(yield_bonus=config.TECH_YIELD_BONUS_PER_NODE),
+    ),
+    Tech(
         key="seed_corn",
         name="Selected seed corn",
-        requires=frozenset({"flood_farming"}),
+        requires=frozenset({"irrigation_canals"}),
         effect=f"+{config.TECH_YIELD_BONUS_PER_NODE} bushel per acre",
         delta=TechDelta(yield_bonus=config.TECH_YIELD_BONUS_PER_NODE),
     ),
     Tech(
         key="almanac",
         name="Nippur almanac",
-        requires=frozenset({"seed_corn", "vaults"}),
+        requires=frozenset({"seed_corn", "undercrofts"}),
         effect=(
             f"+{config.TECH_YIELD_BONUS_ALMANAC} bushel per acre, the rats eat "
             f"1/{config.TECH_RAT_DIVISOR['almanac']} of their share"
@@ -368,9 +462,9 @@ TECH_TREE: tuple[Tech, ...] = (
     ),
 )
 
-#: The farming tree of the ``--agriculture`` rule set: the fifteen nodes a ruler
-#: buys out of the grain in store, and the ladder of :data:`config.TECH_COSTS` that
-#: prices them.
+#: The farming tree of the ``--agriculture`` rule set: the twenty-five nodes a ruler
+#: buys out of the year's spare grain, and the ladder of :data:`config.TECH_COSTS`
+#: that prices them.
 FARMING: TechTree[Tech] = TechTree(
     key="agriculture", label="farmers", nodes=TECH_TREE
 )

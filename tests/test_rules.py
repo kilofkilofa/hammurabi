@@ -37,18 +37,37 @@ from tests.support import StubRandom
         ("VERDICT_ASSASSIN_SHARE", 0.8),
         ("TECH_YIELD_BONUS_PER_NODE", 1),
         ("TECH_YIELD_BONUS_ALMANAC", 1),
-        ("TECH_MAX_YIELD_BONUS", 6),
+        ("TECH_MAX_YIELD_BONUS", 10),
         (
             "TECH_ACRES_PER_SEED",
-            {"plough": 3, "heavy_plough": 4, "seed_drill": 5},
+            {
+                "plough": 3,
+                "heavy_plough": 4,
+                "row_sowing": 5,
+                "seed_drill": 6,
+                "garden_seed": 7,
+            },
         ),
         (
             "TECH_ACRES_PER_WORKER",
-            {"draft_teams": 12, "iron_ploughshares": 14, "harvest_crews": 16},
+            {
+                "draft_teams": 12,
+                "iron_ploughshares": 14,
+                "harvest_crews": 16,
+                "ox_threshers": 18,
+                "water_lifts": 20,
+            },
         ),
         (
             "TECH_RAT_DIVISOR",
-            {"granaries": 2, "silos": 3, "vaults": 4, "almanac": 5},
+            {
+                "granaries": 2,
+                "silos": 3,
+                "cellars": 4,
+                "vaults": 5,
+                "undercrofts": 6,
+                "almanac": 7,
+            },
         ),
         ("PLAGUE_SURVIVOR_PERCENT", 50),
         ("PLAGUE_RESISTANCE_OFFSET", 0.1),
@@ -60,7 +79,9 @@ from tests.support import StubRandom
             "HEALTH_SURVIVOR_PERCENT",
             {
                 "herb_gatherers": 60,
+                "aqueducts": 65,
                 "physicians": 70,
+                "apothecaries": 75,
                 "doctors": 80,
                 "healing_houses": 85,
                 "temple_hospital": 90,
@@ -76,6 +97,7 @@ from tests.support import StubRandom
                 "birthing_houses": 18,
                 "foundling_home": 25,
                 "palace_nursery": 34,
+                "childrens_gardens": 40,
                 "house_of_life": 45,
             },
         ),
@@ -86,6 +108,9 @@ from tests.support import StubRandom
                 "kitchen_gardens": 18,
                 "oil_presses": 17,
                 "fish_ponds": 16,
+                "smokehouses": 15,
+                "breweries": 14,
+                "date_presses": 13,
             },
         ),
     ],
@@ -398,6 +423,56 @@ def test_can_plant_follows_the_technology_it_is_given() -> None:
         population=100,
         acres_per_worker=draft,
     )
+
+
+def test_the_spare_grain_sets_the_food_and_the_seed_aside() -> None:
+    """The research budget is what the city does not need for the year to come."""
+    people = config.START_POPULATION
+    sowable = min(config.START_ACRES, rules.max_plantable_acres(people))
+    need = people * config.BUSHELS_PER_PERSON + rules.seed_cost(sowable)
+
+    assert rules.spare_grain(need + 400, people, acres=config.START_ACRES) == 400
+    assert rules.spare_grain(need, people, acres=config.START_ACRES) == 0
+
+
+def test_the_spare_grain_is_never_negative() -> None:
+    """A store that cannot cover the food and the seed leaves nothing to invest."""
+    assert rules.spare_grain(0, config.START_POPULATION, acres=config.START_ACRES) == 0
+    assert rules.spare_grain(100, 1000, acres=10_000) == 0
+
+
+def test_the_spare_grain_follows_the_rates_it_is_given() -> None:
+    """The health's feeding rate and the farming's sowing rates decide the budget."""
+    people = config.START_POPULATION
+    rate = config.HEALTH_BUSHELS_PER_PERSON["breweries"]
+    acres_per_seed = config.TECH_ACRES_PER_SEED["seed_drill"]
+    sowable = min(config.START_ACRES, rules.max_plantable_acres(people))
+    store = (
+        people * rate
+        + rules.seed_cost(sowable, acres_per_seed=acres_per_seed)
+        + 250
+    )
+
+    assert (
+        rules.spare_grain(
+            store,
+            people,
+            acres=config.START_ACRES,
+            bushels_per_person=rate,
+            acres_per_seed=acres_per_seed,
+        )
+        == 250
+    )
+
+
+def test_the_spare_grain_respects_the_labour_limit() -> None:
+    """Land nobody can tend needs no seed, so it does not eat into the budget."""
+    seed_for_all_hands = rules.seed_cost(rules.max_plantable_acres(10))
+    store = 10 * config.BUSHELS_PER_PERSON + seed_for_all_hands + 300
+
+    spare = rules.spare_grain(store, 10, acres=1000)
+
+    assert spare == 300
 
 
 # --- The optional public health ----------------------------------------------

@@ -102,6 +102,10 @@ class GameState:
             game, and in a year the city could not feed itself.
         rats_ate_this_year: Bushels eaten by rats during the last year.
         yield_per_acre: Harvest of the last year in bushels per planted acre.
+        spare_bushels: Grain the ruler may spend on research this year: the store
+            less the food the people need and the seed the land needs, as ruled by
+            :func:`hammurabi.rules.spare_grain`. ``0`` in a classic game, which
+            never researches, and in a year whose research question is never put.
         plague_this_year: Whether the plague struck at the start of this year.
         plague_roll: Roll carried over from the previous year (``Q`` in the
             listing) that decides whether the plague strikes this year; a
@@ -128,6 +132,7 @@ class GameState:
     born_this_year: int = 0
     rats_ate_this_year: int = config.START_RATS_ATE
     yield_per_acre: int = config.START_YIELD_PER_ACRE
+    spare_bushels: int = 0
     plague_this_year: bool = False
     plague_roll: int = config.START_PLAGUE_ROLL
     total_starved: int = 0

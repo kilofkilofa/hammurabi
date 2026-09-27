@@ -63,6 +63,24 @@ def _endless_rng(
     )
 
 
+def _spare_state(spare: int, **flags: bool) -> GameState:
+    """Return a state whose year leaves ``spare`` bushels for research.
+
+    The food of the city and the seed of its fields are paid before anything is
+    offered, so a test that wants the research question put has to start from a
+    store that covers both. The newcomers announced in the opening report have
+    already joined the city by then, which is why the helper counts them too, and
+    it adds the two figures the way the rules do.
+    """
+    state = GameState(**flags)
+    people = state.population + state.immigrants_this_year
+    sowable = min(state.acres, rules.max_plantable_acres(people))
+    state.bushels = (
+        people * config.BUSHELS_PER_PERSON + rules.seed_cost(sowable) + spare
+    )
+    return state
+
+
 # --- Opening the year --------------------------------------------------------
 
 
@@ -855,28 +873,33 @@ def test_the_rule_set_adds_no_random_draw() -> None:
     assert _figures(agriculture.state) == _figures(classic.state)
 
 
-def test_research_is_paid_out_of_the_grain_in_store() -> None:
+def test_research_is_paid_out_of_the_spare_grain_of_the_year() -> None:
     """The cost leaves the store and the node is unlocked for the years to come."""
     ui = FakeUI(plant=(0,), research=["plough"])
-    game = Game(_year_rng(), ui, state=GameState(agriculture=True, bushels=1000))
+    state = _spare_state(config.TECH_COSTS["plough"] + 100, agriculture=True)
+    store = state.bushels
+    game = Game(_year_rng(), ui, state=state)
 
     game.play_year()
 
     assert game.state.unlocked == frozenset({"plough"})
-    assert game.state.bushels == 1000 - config.TECH_COSTS["plough"]
+    assert game.state.bushels == store - config.TECH_COSTS["plough"]
+    assert game.state.spare_bushels == config.TECH_COSTS["plough"] + 100
     assert ("research", "plough", config.TECH_COSTS["plough"]) in ui.calls
 
 
 def test_declining_research_keeps_the_grain_and_unlocks_nothing() -> None:
-    """Answering ``None`` costs nothing; only what the store can pay for is offered."""
+    """Answering ``None`` costs nothing; only what the surplus pays for is offered."""
     ui = FakeUI(plant=(0,))
-    game = Game(_year_rng(), ui, state=GameState(agriculture=True, bushels=500))
+    state = _spare_state(config.TECH_COSTS["granaries"], agriculture=True)
+    store = state.bushels
+    game = Game(_year_rng(), ui, state=state)
 
     game.play_year()
 
-    assert ("ask_research", 1, 500, ("plough",)) in ui.calls
+    assert ("ask_research", 1, store, ("plough", "fallow", "granaries")) in ui.calls
     assert game.state.unlocked == frozenset()
-    assert game.state.bushels == 500
+    assert game.state.bushels == store
     assert "research" not in ui.names()
 
 
@@ -891,23 +914,60 @@ def test_a_ruler_without_grain_is_not_asked_to_research() -> None:
     assert game.state.unlocked == frozenset()
 
 
+def test_a_year_that_leaves_nothing_spare_puts_no_research_question() -> None:
+    """The bread of the city is not a budget, however full the granary looks."""
+    ui = FakeUI(plant=(0,))
+    state = _spare_state(0, agriculture=True)
+    store = state.bushels
+    game = Game(_year_rng(), ui, state=state)
+
+    game.play_year()
+
+    assert store >= config.TECH_COSTS["plough"], "the store covers the cheapest node"
+    assert "ask_research" not in ui.names()
+    assert game.state.unlocked == frozenset()
+    assert game.state.bushels == store
+
+
+def test_the_health_s_feeding_rate_widens_the_year_s_budget() -> None:
+    """A person fed on thirteen bushels leaves seven more for the programme."""
+    ui = FakeUI(plant=(0,))
+    state = GameState(health=True, unlocked=frozenset({"date_presses"}))
+    people = state.population + state.immigrants_this_year
+    sowable = min(state.acres, rules.max_plantable_acres(people))
+    seed = rules.seed_cost(sowable)
+    cheap_food = people * config.HEALTH_BUSHELS_PER_PERSON["date_presses"]
+    state.bushels = cheap_food + seed + 900
+    game = Game(_year_rng(), ui, state=state)
+
+    game.play_year()
+
+    assert state.spare_bushels == 900
+    assert "ask_research" in ui.names()
+    classic_spare = state.bushels - people * config.BUSHELS_PER_PERSON - seed
+    assert classic_spare == 200, "the classic rate would leave far less to invest"
+
+
 def test_only_one_research_starts_in_a_year() -> None:
-    """The tree is climbed a node at a time, however rich the store is."""
+    """The tree is climbed a node at a time, however much the year leaves spare."""
     ui = FakeUI(plant=(0,), research=["plough", "fallow"])
-    game = Game(_year_rng(), ui, state=GameState(agriculture=True, bushels=5000))
+    state = _spare_state(config.TECH_COSTS["granaries"], agriculture=True)
+    store = state.bushels
+    game = Game(_year_rng(), ui, state=state)
 
     game.play_year()
 
     assert game.state.unlocked == frozenset({"plough"})
     assert [call for call in ui.calls if call[0] == "ask_research"] == [
-        ("ask_research", 1, 5000, ("plough", "fallow", "granaries"))
+        ("ask_research", 1, store, ("plough", "fallow", "granaries"))
     ]
 
 
 def test_an_unknown_technology_is_rejected_and_asked_again() -> None:
     """A key the tree does not know is explained and the question is put again."""
     ui = FakeUI(plant=(0,), research=["taxes", "plough"])
-    game = Game(_year_rng(), ui, state=GameState(agriculture=True, bushels=600))
+    state = _spare_state(config.TECH_COSTS["granaries"], agriculture=True)
+    game = Game(_year_rng(), ui, state=state)
 
     game.play_year()
 
@@ -921,7 +981,8 @@ def test_an_unknown_technology_is_rejected_and_asked_again() -> None:
 def test_a_ui_that_only_offers_an_unknown_technology_is_given_up_on() -> None:
     """The give-up bound covers the research question like the other four."""
     ui = FakeUI(plant=(0,), research=["taxes"])
-    game = Game(_year_rng(), ui, state=GameState(agriculture=True, bushels=600))
+    state = _spare_state(config.TECH_COSTS["granaries"], agriculture=True)
+    game = Game(_year_rng(), ui, state=state)
 
     with pytest.raises(RuntimeError):
         game.play_year()

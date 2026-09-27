@@ -10,15 +10,16 @@ grain while harvests, rats, immigration and plague decide your fate. Add
 `--agriculture` and you may also pay for the farming technologies of Sumeria;
 add `--health` and you may pay for its public-health measures instead.
 
-> **Project status:** v1.4.0 — the full target outcome of
-> [`docs/plan.md`](docs/plan.md) §6 is met. M9 put the public-health rule set of §4
-> behind `--health`, sharing the one research moment of a year with the farming
-> tree; M8 deepened the optional agriculture rule set into a fifteen-node tree
-> whose price ladder spreads the whole programme over eighty to ninety years; M7
-> put that rule set behind `--agriculture`, and M6 added the second documented rule
-> set — the classic ten years stay the default while `--years 100` plays the
-> marathon. The measured outcome of all of them is in
-> [`docs/balancing.md`](docs/balancing.md). See
+> **Project status:** v1.5.0 — the full target outcome of
+> [`docs/plan.md`](docs/plan.md) §6 is met. M10 grew both optional rule sets to
+> twenty-five nodes each: the farming tree spans a quarter-step ladder from 250 to
+> 52,890 bushels and the public-health tree from 100 to 16,590, and the measured
+> notes of [`docs/balancing.md`](docs/balancing.md) were re-measured rung by rung.
+> M9 put the public-health rule set of §4 behind `--health`, sharing the one
+> research moment of a year with the farming tree; M8 deepened the optional
+> agriculture rule set; M7 put that rule set behind `--agriculture`, and M6 added
+> the second documented rule set — the classic ten years stay the default while
+> `--years 100` plays the marathon. See
 > [`docs/progress.md`](docs/progress.md).
 
 ## Requirements
@@ -67,7 +68,7 @@ Options:
 hammurabi --help      # usage and options
 hammurabi --seed 42   # replay a game: the same seed brings the same events
 hammurabi --years 100 # the marathon: the same rules for a century
-hammurabi --agriculture # the farming tech tree: research out of the grain in store
+hammurabi --agriculture # the farming tech tree: research out of the year's spare grain
 hammurabi --health    # the public-health tree: the same research, medicine instead
 hammurabi --version   # print the version
 ```
@@ -92,32 +93,37 @@ with seed. Answer with whole numbers.
   of the city in one year ends your reign at once.
 
 Add `--agriculture` and each year also asks which farming technology to research,
-or `0` for none. The 15 nodes of the tree cost from 400 bushels up, paid out of
-the grain in store: the ox-drawn plough, the heavy plough and the seed drill let a
-bushel of seed sow 3, 4 and then 5 acres; fallow fields, manuring, crop rotation,
-flood farming and the selected seed corn add a bushel per acre each; the granaries,
-the sealed silos, the temple vaults and the Nippur almanac cut what the rats eat;
-and the draft teams, the iron ploughshares and the harvest crews let one person
-tend 12, 14 and then 16 acres. The price climbs by about half again at every rung,
-so the whole programme is the work of a lifetime: measured over five hundred
-marathons, the last node is bought in year 86 on the median, and the classic decade
-is only the first few rungs — [`docs/balancing.md`](docs/balancing.md) has the
-figures.
+or `0` for none. The 25 nodes of the tree cost from 250 bushels up, paid out of the
+year's spare grain — what the store holds once the food the people need and the seed
+the land needs have been set aside, so the city's bread can never be invested: the
+ox-drawn plough, the heavy plough, the row sowing, the seed
+drill and the garden seed let a bushel of seed sow 3, 4, 5, 6 and then 7 acres; the
+nine rungs of the fallow-fields branch and the Nippur almanac add a bushel per acre
+each; the granaries, the sealed silos, the underground cellars, the temple vaults,
+the undercrofts and the almanac cut what the rats eat; and the draft teams, the iron
+ploughshares, the harvest crews, the ox-driven threshers and the water lifts let one
+person tend 12, 14, 16, 18 and then 20 acres. The price climbs by about a quarter at
+every rung, so the whole programme is the work of a reign: measured over five
+hundred marathons, the last node is bought in year 45 on the median, and the classic
+decade is only the first few rungs — [`docs/balancing.md`](docs/balancing.md) has
+the figures.
 
-Add `--health` instead and the yearly question offers the 19 measures of the health
+Add `--health` instead and the yearly question offers the 25 measures of the health
 tree, which start at 100 bushels: the wells, the drained streets and the
 brick-lined drains keep the plague away, so it comes 20, then 15, 10 and finally 5
-years in a hundred; the herb gatherers, the physicians, the doctors, the healing
-houses and the temple hospital save the sick, until nineteen in twenty live through
-a plague year; the midwives, the wet nurses, the milk herds, the birthing houses,
-the foundling home and the palace nursery bring children into the city; and the
-milled grain, the kitchen gardens, the oil presses and the fish ponds bring the
-bushels that feed one person for a year from 20 down to 16. The **House of Life**
-needs the deepest measure of every branch at once. This tree buys people, not
-grain, so it will not save a city from famine on its own — the measured arc of a
-healer's plan is in [`docs/balancing.md`](docs/balancing.md). Ask for both rule
-sets and the one research moment a year serves both trees, as long as you can
-choose.
+years in a hundred, and the aqueducts carry the clean water to the sick; the herb
+gatherers, the physicians, the apothecaries, the doctors, the healing houses and the
+temple hospital save the sick, until nineteen in twenty live through a plague year;
+the midwives, the wet nurses, the milk herds, the birthing houses, the foundling
+home, the palace nursery and the children's gardens bring children into the city;
+and the milled grain, the kitchen gardens, the oil presses, the fish ponds, the
+smokehouses, the breweries and the date presses bring the bushels that feed one
+person for a year from 20 down to 13. The **House of Life** needs the deepest
+measure of every branch at once. This tree buys people, not grain, so it will not
+save a city from famine on its own — the measured arc of a healer's plan is in
+[`docs/balancing.md`](docs/balancing.md). Ask for both rule sets and the one research
+moment a year serves both trees, as long as you can choose; either way the price has
+to fit in what the year leaves over, and both questions quote that figure.
 
 A line that is not a whole number, or an amount the rules cannot accept, is
 explained and asked for again. When the term ends the game judges you on the

@@ -253,6 +253,49 @@ def harvest(acres_planted: int, yield_per_acre: int) -> int:
     return acres_planted * yield_per_acre
 
 
+def spare_grain(
+    bushels: int,
+    population: int,
+    *,
+    acres: int,
+    bushels_per_person: int = config.BUSHELS_PER_PERSON,
+    acres_per_seed: int = config.ACRES_PER_SEED_BUSHEL,
+    acres_per_worker: int = config.ACRES_PER_WORKER,
+) -> int:
+    """Return the grain a ruler may spend on research this year.
+
+    The city comes first: the food its people need for the year and the seed its
+    land needs for the next sowing are set aside, and only what is left over is a
+    budget. The optional rule sets of ``docs/plan.md`` section 4 may start a node
+    only out of that surplus, so the bread of the city and the seed of its fields
+    can never be invested.
+
+    The feeding rate in force is an argument like the sowing rates, so the health
+    rule set's measures bring their own margin: feeding a person out of fewer
+    bushels leaves more grain in the year's budget.
+
+    Args:
+        bushels: Grain in store after the harvest and the rats.
+        population: People living in the city, who will have to be fed.
+        acres: Acres the city owns.
+        bushels_per_person: Bushels that feed one person for a year.
+        acres_per_seed: Acres one bushel of seed sows.
+        acres_per_worker: Acres one person can tend.
+
+    Returns:
+        The surplus left after food and seed, never negative.
+    """
+    sowable = min(
+        acres, max_plantable_acres(population, acres_per_worker=acres_per_worker)
+    )
+    return max(
+        0,
+        bushels
+        - population * bushels_per_person
+        - seed_cost(sowable, acres_per_seed=acres_per_seed),
+    )
+
+
 def is_impeached(population: int, starved: int) -> bool:
     """Return whether starving more than 45% in one year ends the game."""
     return starved > config.IMPEACHMENT_STARVATION_RATIO * population

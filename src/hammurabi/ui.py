@@ -132,9 +132,10 @@ def _ruleset_note(state: GameState) -> str:
         tree = trees[0]
         return (
             f"\n\nThis is the {tree.key} rule set: each year you may also pay for one "
-            f"of the {tree.size} {RULESET_SUBJECTS[tree.key]} out of the grain in "
-            "store. The later ones cost what many harvests leave over, so the whole "
-            "programme is the work of a lifetime."
+            f"of the {tree.size} {RULESET_SUBJECTS[tree.key]} out of the grain left "
+            "over once the people are fed and the fields are sown. The later ones cost "
+            "what many harvests leave over, so the whole programme is the work of a "
+            "lifetime."
         )
     named = " and ".join(tree.key for tree in trees)
     sized = " and ".join(
@@ -142,10 +143,11 @@ def _ruleset_note(state: GameState) -> str:
     )
     return (
         f"\n\nThis is the {named} rule set: each year you may also pay for one of "
-        f"{sized} out of the grain in store, because a year holds one research moment "
-        "however many programmes it serves. The later nodes cost what many harvests "
-        "leave over, so a whole programme is the work of a lifetime and mastering both "
-        "takes the longest reign of all."
+        f"{sized} out of the grain left over once the people are fed and the fields "
+        "are sown, because a year holds one research moment however many programmes it "
+        "serves. The later nodes cost what many harvests leave over, so a whole "
+        "programme is the work of a lifetime and mastering both takes the longest "
+        "reign of all."
     )
 
 
@@ -337,9 +339,10 @@ class ConsoleUI:
         sowing that breaks a rule.
 
         Args:
-            state: State the question is asked in; its flags and grain are read.
-            choices: Nodes the store can pay for, in tree order, both programmes
-                together.
+            state: State the question is asked in; its flags, grain and spare
+                grain are read.
+            choices: Nodes the year's spare grain can pay for, in tree order, both
+                programmes together.
 
         Returns:
             The key of the chosen node, ``None`` for no research this year, or the
@@ -366,10 +369,20 @@ class ConsoleUI:
                 f"Your {tree.label} have mastered "
                 f"{len(tree.mastered(state.unlocked))} of {tree.size} technologies."
             )
+        # The engine prices the food of the city and the seed of its fields into the
+        # budget, so the table holds only what the year leaves over; the figure is
+        # printed here as well because the bracketed hint of a question is dropped
+        # from the drawn text by ``rich`` (see ``progress.md``, known issues).
+        self.console.print(
+            f"You may spend {state.spare_bushels} of your {state.bushels} bushels on "
+            "research; the food of your people and the seed of your fields are "
+            "already set aside."
+        )
         self.console.print(table)
         answer = self._ask_int(
             "Which technology do you wish to research? "
-            f"[you have {state.bushels} bushels, answer 0 to research nothing]"
+            f"[you have {state.bushels} bushels and may spend "
+            f"{state.spare_bushels} of them on research, answer 0 to research nothing]"
         )
         if answer == 0:
             return None

@@ -18,10 +18,26 @@ from hammurabi.models import Agriculture
 ALL_KEYS = tuple(item.key for item in tech.TECH_TREE)
 
 #: The four branches, as the modules and the documents name them.
-FIELD_KEYS = ("fallow", "manuring", "rotation", "flood_farming", "seed_corn")
-SEED_KEYS = ("plough", "heavy_plough", "seed_drill")
-STORE_KEYS = ("granaries", "silos", "vaults")
-LABOUR_KEYS = ("draft_teams", "iron_ploughshares", "harvest_crews")
+FIELD_KEYS = (
+    "fallow",
+    "green_manuring",
+    "manuring",
+    "irrigated_terraces",
+    "rotation",
+    "royal_gardens",
+    "flood_farming",
+    "irrigation_canals",
+    "seed_corn",
+)
+SEED_KEYS = ("plough", "heavy_plough", "row_sowing", "seed_drill", "garden_seed")
+STORE_KEYS = ("granaries", "silos", "cellars", "vaults", "undercrofts")
+LABOUR_KEYS = (
+    "draft_teams",
+    "iron_ploughshares",
+    "harvest_crews",
+    "ox_threshers",
+    "water_lifts",
+)
 
 #: The nodes that are open from the first year.
 OPENING_KEYS = ("plough", "fallow", "granaries")
@@ -32,21 +48,31 @@ UNKNOWN = "taxes"
 #: The price of every node, frozen. Retuning the ladder is a deliberate change:
 #: this table, ``docs/plan.md`` and the measured batches all have to follow.
 DOCUMENTED_COSTS = (
-    ("plough", 400),
-    ("fallow", 600),
-    ("granaries", 850),
-    ("manuring", 1250),
-    ("draft_teams", 1850),
-    ("heavy_plough", 2700),
-    ("rotation", 3950),
-    ("silos", 5800),
-    ("iron_ploughshares", 8500),
-    ("seed_drill", 12450),
-    ("flood_farming", 18200),
-    ("vaults", 26700),
-    ("harvest_crews", 39100),
-    ("seed_corn", 57250),
-    ("almanac", 83900),
+    ("plough", 250),
+    ("fallow", 310),
+    ("granaries", 390),
+    ("heavy_plough", 490),
+    ("green_manuring", 610),
+    ("draft_teams", 760),
+    ("silos", 950),
+    ("manuring", 1190),
+    ("row_sowing", 1490),
+    ("iron_ploughshares", 1860),
+    ("cellars", 2330),
+    ("irrigated_terraces", 2910),
+    ("seed_drill", 3640),
+    ("harvest_crews", 4540),
+    ("vaults", 5680),
+    ("rotation", 7100),
+    ("garden_seed", 8870),
+    ("ox_threshers", 11090),
+    ("undercrofts", 13870),
+    ("royal_gardens", 17330),
+    ("water_lifts", 21660),
+    ("flood_farming", 27080),
+    ("irrigation_canals", 33850),
+    ("seed_corn", 42310),
+    ("almanac", 52890),
 )
 
 
@@ -70,16 +96,26 @@ def test_the_tree_is_the_four_documented_branches_and_a_capstone() -> None:
 def test_the_first_node_of_a_branch_is_what_the_next_one_needs() -> None:
     """Every rung waits for the rung below it, and only for that."""
     chain = {
-        "manuring": "fallow",
-        "rotation": "manuring",
-        "flood_farming": "rotation",
-        "seed_corn": "flood_farming",
+        "green_manuring": "fallow",
+        "manuring": "green_manuring",
+        "irrigated_terraces": "manuring",
+        "rotation": "irrigated_terraces",
+        "royal_gardens": "rotation",
+        "flood_farming": "royal_gardens",
+        "irrigation_canals": "flood_farming",
+        "seed_corn": "irrigation_canals",
         "heavy_plough": "plough",
-        "seed_drill": "heavy_plough",
+        "row_sowing": "heavy_plough",
+        "seed_drill": "row_sowing",
+        "garden_seed": "seed_drill",
         "silos": "granaries",
-        "vaults": "silos",
+        "cellars": "silos",
+        "vaults": "cellars",
+        "undercrofts": "vaults",
         "iron_ploughshares": "draft_teams",
         "harvest_crews": "iron_ploughshares",
+        "ox_threshers": "harvest_crews",
+        "water_lifts": "ox_threshers",
     }
     for key, needs in chain.items():
         assert tech.FARMING.node(key).requires == _unlocked(needs)
@@ -112,7 +148,7 @@ def test_the_printed_order_is_a_valid_plan() -> None:
 def test_the_capstone_waits_for_the_deepest_yield_and_the_best_storage() -> None:
     """The almanac closes the tree: without either branch it is not on offer."""
     almanac = tech.FARMING.node("almanac")
-    assert almanac.requires == _unlocked("seed_corn", "vaults")
+    assert almanac.requires == _unlocked("seed_corn", "undercrofts")
     assert "almanac" not in [item.key for item in tech.FARMING.available(_unlocked())]
     assert "almanac" not in [
         item.key for item in tech.FARMING.available(_unlocked(*FIELD_KEYS))
@@ -135,17 +171,17 @@ def test_every_node_costs_the_documented_grain() -> None:
     assert sorted(config.TECH_COSTS) == sorted(ALL_KEYS)
 
 
-def test_the_prices_climb_a_ladder_of_about_half_again_a_rung() -> None:
+def test_the_prices_climb_a_ladder_of_about_a_quarter_a_rung() -> None:
     """The ladder is what stretches the programme over a lifetime.
 
-    Every rung costs around half as much again as the one below it, which keeps
-    the first nodes within reach of the opening years and the last ones out of
-    reach of anything but decades of surplus.
+    Every rung costs around a quarter as much again as the one below it, which
+    keeps the first nodes within reach of the opening years and the last ones out
+    of reach of anything but decades of surplus.
     """
     rungs = [cost for _key, cost in DOCUMENTED_COSTS]
     assert rungs == sorted(rungs), "the ladder must be printed cheapest first"
     for lower, upper in zip(rungs, rungs[1:]):
-        assert 1.4 <= upper / lower <= 1.55, f"{lower} -> {upper} leaves the ladder"
+        assert 1.2 <= upper / lower <= 1.3, f"{lower} -> {upper} leaves the ladder"
 
 
 def test_the_first_year_can_afford_every_opening_node() -> None:
@@ -213,9 +249,13 @@ def test_the_sprouting_nodes_are_open_from_the_first_year() -> None:
 
 def test_a_node_waits_for_its_prerequisite() -> None:
     assert "manuring" not in [item.key for item in tech.FARMING.available(_unlocked())]
-    assert "manuring" in [item.key for item in tech.FARMING.available(_unlocked("fallow"))]
+    assert "manuring" in [
+        item.key for item in tech.FARMING.available(_unlocked("green_manuring"))
+    ]
     assert "silos" in [item.key for item in tech.FARMING.available(_unlocked("granaries"))]
-    assert "rotation" not in [item.key for item in tech.FARMING.available(_unlocked("fallow"))]
+    assert "rotation" not in [
+        item.key for item in tech.FARMING.available(_unlocked("green_manuring"))
+    ]
 
 
 def test_can_research_needs_the_prerequisites_and_the_grain() -> None:
@@ -273,14 +313,14 @@ def test_each_node_raises_the_setting_it_documents() -> None:
 
 
 def test_the_field_nodes_add_up_to_the_documented_maximum() -> None:
-    """The five rungs of the fields and the almanac are the whole harvest."""
+    """The nine rungs of the fields and the almanac are the whole harvest."""
     fields = tech.settings(_unlocked(*FIELD_KEYS))
-    assert fields.yield_bonus == 5 * config.TECH_YIELD_BONUS_PER_NODE
+    assert fields.yield_bonus == 9 * config.TECH_YIELD_BONUS_PER_NODE
     assert tech.settings(_unlocked(*ALL_KEYS)).yield_bonus == (
         config.TECH_MAX_YIELD_BONUS
     )
     assert config.TECH_MAX_YIELD_BONUS == (
-        5 * config.TECH_YIELD_BONUS_PER_NODE + config.TECH_YIELD_BONUS_ALMANAC
+        9 * config.TECH_YIELD_BONUS_PER_NODE + config.TECH_YIELD_BONUS_ALMANAC
     )
 
 
@@ -299,9 +339,9 @@ def test_a_deeper_rate_supersedes_the_rung_below_it() -> None:
 def test_the_whole_tree_is_the_most_the_farming_can_give() -> None:
     full = tech.settings(_unlocked(*ALL_KEYS))
     assert full.yield_bonus == config.TECH_MAX_YIELD_BONUS
-    assert full.acres_per_seed == config.TECH_ACRES_PER_SEED["seed_drill"]
-    assert full.acres_per_worker == config.TECH_ACRES_PER_WORKER["harvest_crews"]
-    assert full.rat_divisor == config.TECH_RAT_DIVISOR["almanac"]
+    assert full.acres_per_seed == max(config.TECH_ACRES_PER_SEED.values())
+    assert full.acres_per_worker == max(config.TECH_ACRES_PER_WORKER.values())
+    assert full.rat_divisor == max(config.TECH_RAT_DIVISOR.values())
 
 
 def test_a_key_the_tree_does_not_know_is_ignored() -> None:

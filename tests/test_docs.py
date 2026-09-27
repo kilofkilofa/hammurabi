@@ -239,11 +239,22 @@ def test_the_specification_quotes_the_health_figures() -> None:
             min(config.HEALTH_BUSHELS_PER_PERSON.values()),
         )
     ]
-    survivors = [config.PLAGUE_SURVIVOR_PERCENT]
-    survivors += sorted(config.HEALTH_SURVIVOR_PERCENT.values())
-    assert set(_text_matches(PLAN, r"plague survivors: (\d+)% -> (\d+)%")) == {
-        (str(lower), str(upper)) for lower, upper in zip(survivors, survivors[1:])
+    # The survivor share is one ladder: every value from the classic half to the
+    # House of Life's nineteen in twenty is reached by exactly one measure, and the
+    # plan quotes each step of it.
+    reached = {
+        config.PLAGUE_SURVIVOR_PERCENT,
+        *config.HEALTH_SURVIVOR_PERCENT.values(),
     }
+    assert sorted(reached) == [config.PLAGUE_SURVIVOR_PERCENT, *range(60, 100, 5)], (
+        "the ladder is the classic half and then every five"
+    )
+    quoted = {
+        pair
+        for item in health.HEALTH_TREE
+        for pair in re.findall(r"plague survivors: (\d+)% -> (\d+)%", item.effect)
+    }
+    assert set(_text_matches(PLAN, r"plague survivors: (\d+)% -> (\d+)%")) == quoted
 
 
 def test_the_specification_quotes_the_agriculture_figures() -> None:

@@ -20,15 +20,18 @@ Last updated: 2026-09-27
 | M8 — A tree that takes a lifetime | **Done** | The tree grew to fifteen nodes in four branches and a capstone, every rung a figure the ruler sees (acres per bushel of seed, bushels per acre, acres per person, the rats' share); the prices climb by about half again a rung, so the measured plan buys the capstone in year 86 on the median and 190 of 500 marathons buy the whole tree; the arc is tabulated rung by rung in `docs/balancing.md` and pinned by `test_the_plan_of_the_tree_takes_a_lifetime`; released as `1.3.0` |
 
 | M9 — Health rule set | **Done** | `--health` puts the optional public-health tree of `plan.md` §4 in play: `health.py` (nineteen measures, four branches, the House of Life), the `Node`/`TechTree`/`Offer` machinery shared with `tech.py`, one research moment a year covering both trees, `models.Health` + `GameState.health`/`born_this_year`, the four rules with classic defaults (`plague_survivors`, `plague_roll` resistance, `people_fed`, `births`), the children in the report and the programme column in the table; `tests/test_health.py` plus the new cases across the suite, and the measured worth of the tree in `docs/balancing.md`; released as `1.4.0` |
+| M10 — Twenty-five-node rule sets | **Done** | Both optional rule sets of `plan.md` §4 grew to twenty-five nodes each: the farming tree (`tech.py`) now carries nine field rungs, five seed rungs, five store rungs, five hands rungs and the almanac, and the health tree (`health.py`) four water rungs, six healers, seven nursery rungs, seven of food and the House of Life; the price ladders climb by about a quarter a rung (farming 263,450 bushels from 250 to 52,890; health 86,070 from 100 to 16,590); the survivor share climbs every five from the classic half to nineteen in twenty and the feeding rate falls to thirteen bushels; every arc in `docs/balancing.md` was re-measured rung by rung, and the measured plan buys the farming tree out in year 45 on the median; released as `1.5.0` |
+| M11 — The year's budget pays for research | **Done** | Research of either rule set may only be paid out of the year's **spare grain**: `rules.spare_grain` sets the food the people need (at the health in force) and the seed the land needs aside, `GameState.spare_bushels` carries the figure, the engine offers nothing above it and the UI quotes it with the question; measured over 500 marathons with a ruler who buys the costliest node first, the old gate let 326 years end below the food line, and the measured arcs of both rule sets are unchanged because their policies already spent only the surplus; ships with `1.5.0` |
 
-Overall: **M0–M9 complete — `1.4.0`.** The rules layer, the yearly engine, the
+Overall: **M0–M11 complete — `1.5.0`.** The rules layer, the yearly engine, the
 `rich` terminal UI, the release metadata, the hardening and the four documented
 rule sets are all in place: `hammurabi`, `python -m hammurabi` and
 `python main.py` play a real game (add `--years 100` for the marathon,
-`--agriculture` for the fifteen-node farming tech tree and `--health` for the
-nineteen public-health measures), seeded batches of 500 games per policy guard the
-rules in every rule set, and `docs/plan.md`, `README.md` and `docs/balancing.md`
-are checked against the code by the suite.
+`--agriculture` for the twenty-five-node farming tech tree and `--health` for the
+twenty-five public-health measures), research is paid out of the year's spare
+grain rather than out of the bread of the city, seeded batches of 500 games per
+policy guard the rules in every rule set, and `docs/plan.md`, `README.md` and
+`docs/balancing.md` are checked against the code by the suite.
 
 ## Done
 
@@ -286,6 +289,71 @@ are checked against the code by the suite.
   health table and its four rules, §5 records M9, §6 its target outcome,
   `README.md` the new flag and `architecture.md` the shared machinery, the `Health`
   value and the union research.
+- **M10** — both optional rule sets of `plan.md` §4 grew to twenty-five nodes each.
+  The farming tree now runs **fields 9** (fallow fields, green manuring, manured
+  fields, irrigated terraces, crop rotation, royal gardens, flood farming,
+  irrigation canals, selected seed corn) for +9 bushels an acre, the almanac a
+  tenth; **seed 5** (3→4→5→6→7 acres a bushel); **store 5** (the rats' share from a
+  half to a sixth, the almanac a seventh); and **hands 5** (10→12→14→16→18→20 acres
+  a person). The public-health tree now runs **water 4** (the three resistance rungs
+  and the aqueducts), **healers 6** (adding the apothecaries), **nursery 7** (adding
+  the children's gardens) and **food 7** (adding the smokehouses, the breweries and
+  the date presses), so the survivor share climbs 60→65→70→75→80→85→90→95 and the
+  bushels that feed a person fall 19→13.
+- **M10** — `config.TECH_COSTS` and `config.HEALTH_COSTS` are the new quarter-step
+  ladders (farming 250→52,890, 263,450 bushels together; health 100→16,590, 86,070
+  together); `TECH_MAX_YIELD_BONUS` rose to 10, `TECH_ACRES_PER_SEED` to seven,
+  `TECH_ACRES_PER_WORKER` to twenty and `TECH_RAT_DIVISOR` to seven. The rate
+  dictionaries carry one entry per rung, and the `plan.md` §4 tables, `README.md`,
+  `test_tech.py`, `test_health.py`, `test_rules.py` and `test_docs.py` all follow
+  them; the two tables are still compared row by row with the trees by
+  `tests/test_docs.py`.
+- **M10** — `docs/balancing.md` was re-measured rung by rung for both trees. The
+  farmer completes 296 decades (was 277) and 262 centuries, buys all twenty-five
+  rungs in 262 games of 500 with a median completion year of 45 (mean 45.8, range
+  40-56), and 5,726 of the 7,296 rungs ever bought fall in the first twenty years.
+  The healer's arc now reaches the smokehouses — the nineteenth of the twenty-five,
+  in 24 games — and a fully built health tree is impeached in the twelfth year on
+  the median. The splitter buys 13.3 measures for every 9.5 rungs, and for the first
+  time one of these policies reaches the House of Life (80 games of 500).
+- **M10** — the arc tests were renamed and re-stated to that measured reality:
+  `test_the_plan_of_the_tree_is_the_work_of_a_reign` replaces
+  `test_the_plan_of_the_tree_takes_a_lifetime`, the capstone is now bought by more
+  than half the games instead of fewer, and the splitter's deepest measure is the
+  capstone rather than a rung short of it. The classic game is untouched: the
+  careful, trader, seller and starver batches report exactly the counts they did
+  before, because nothing but the two trees changed.
+- **M10** — release: `hammurabi.__version__` is `1.5.0`; `plan.md` §4 carries both
+  new tables, §5 records M10, §6 its target outcome, `README.md` the deeper trees,
+  and `architecture.md` their new sizes and the version policy.
+- **M11** — research is paid out of the year's **spare grain**, not out of the store:
+  `rules.spare_grain` sets the food the people need (at the feeding rate in force, so
+  the health's measures widen the budget) and the seed the land needs aside,
+  `GameState.spare_bushels` carries the figure, `Game._research` offers nothing above
+  it, and `ConsoleUI.ask_research` prints it above the table ("You may spend 301 of
+  your 2800 bushels on research; the food of your people and the seed of your fields
+  are already set aside") as well as in the question's hint — the drawn question drops
+  the bracketed hint, which is the known issue listed below. `TechTree.can_research`
+  and `tech.Offer` say the same thing in their docstrings, and the intro banner now
+  says the programme is paid "out of the grain left over once the people are fed and
+  the fields are sown".
+- **M11** — the rule was measured before it was written. The old gate compared the
+  price with the store alone: over 500 marathons of 100 years played by a ruler who
+  buys the costliest node on offer, 326 years ended with the store below the food the
+  city needs *because of the purchase*, and 1,261 years ended below it. With the
+  spare-grain rule no purchase can cross that line. The measured policies of
+  `docs/balancing.md` are bit for bit unchanged — they already spent only the surplus
+  — so no arc, no figure and no row of the balancing notes moved. The opening year
+  still offers the ox-drawn plough: 2,800 − 2,000 (food for a hundred people) − 499
+  (seed for the 999 acres they can tend) = 301 bushels spare.
+- **M11** — tests and documents: `tests/test_rules.py` covers the rule itself (food
+  and seed set aside, never negative, the rates and the labour limit it is given),
+  `tests/test_game.py` proves a node above the surplus is never offered while the
+  store could pay for it, that the health's feeding rate widens the budget and that
+  `spare_bushels` carries the figure, and `tests/test_ui.py` pins the hint and the
+  banner. `plan.md` §4 (the research rule and the consequence lists of both rule
+  sets), §5 (M11) and §6 (the v1.5 outcome), `architecture.md`, `balancing.md`,
+  `README.md` and this file follow.
 
 ## In progress
 
@@ -296,15 +364,23 @@ are checked against the code by the suite.
 
 ## Next steps
 
-1. **M4** — add `[project.urls]` once the project has a public repository, and
+1. **M12 — conquest rule set** (next, planned as `1.6.0`): the army, one to twelve
+   AI neighbours, battles, margin-scaled spoils and five-year peace treaties, behind
+   `--war` / `--opponents N` plus the `--all` master toggle; `Neighbour` in
+   `models.py`, the battles as pure functions in a new `war.py`, the muster and the
+   neighbour turn in the yearly loop, the soldiers as an argument of the planting
+   rules, and the measured worth of conquest in `docs/balancing.md`. The
+   research-budget rule of M11 ships with `1.5.0`, so the war rule set is the next
+   minor version; `plan.md` §3's non-goal on AI opponents is relaxed for it first.
+2. **M4** — add `[project.urls]` once the project has a public repository, and
    name the copyright holder in `LICENSE`.
-2. Keep the documents and the engine in step: `tests/test_docs.py` and
+3. Keep the documents and the engine in step: `tests/test_docs.py` and
    `tests/test_simulation.py` fail whenever a constant moves and the prose, the
    `plan.md` §4 tree tables or the arcs in `docs/balancing.md` do not follow, so a
    rule change is a documentation change by construction. Retuning either price
    ladder means re-running that rule set's marathon batch and replacing its arc table
    with the new one.
-3. **Known issue found during M7** — the bracketed hint of a question is dropped
+4. **Known issue found during M7** — the bracketed hint of a question is dropped
    from the *drawn* question: `rich` reads `[you have 2800 bushels, land is 23
    bushels per acre]` as markup, so the console shows only "How many acres do you
    wish to buy?" while the reader of the answer still receives the hint (which is
@@ -353,7 +429,7 @@ are checked against the code by the suite.
 | 2026-09-27 | Research costs no random draw: it changes the figures the rules are handed, never the stream of events | The two rule sets can then be measured against each other on the same seeds, and a term played with the rule set on and every offer declined is the classic term bit for bit — `tests/test_game.py` proves it and `docs/balancing.md` shows the identical rows |
 | 2026-09-27 | Keep the tree in a new `tech.py` and hand the technology to `rules.py` as keyword arguments that default to the classic values | `rules.py` stays a pure, rule-set-free layer, the tree is data the tests can read directly, and a classic caller cannot accidentally get a bonus |
 | 2026-09-27 | The rats' divisor takes the strongest value instead of stacking | Granaries halving the loss and the almanac quartering it are alternatives for the same problem; stacking them would leave an eighth and make the rats irrelevant |
-| 2026-09-27 | Ask for research only when the store can afford a node, and pay for it before the immigration formula runs | A question with no acceptable answer would spin the bounded retry loop, and paying before the newcomers keeps the ledger single-entry while making the price of the school visible that year |
+| 2026-09-27 | Ask for research only when the store can afford a node, and pay for it before the immigration formula runs — *superseded in M11, where the budget became the year's spare grain rather than the whole store* | A question with no acceptable answer would spin the bounded retry loop, and paying before the newcomers keeps the ledger single-entry while making the price of the school visible that year |
 | 2026-09-27 | Record the measured trade-off instead of tuning the tree to beat the classic decade | The notes measure what the rules do; the batches showed the tree is a long game (it costs more than it returns in ten years and turns a 1-in-500 marathon into 103 survivors), and making the vintage decade easier would have been a balance change to the original game in disguise |
 | 2026-09-27 | Release `1.2.0` | M7 adds behaviour, a flag and a module, so the minor version moves; the version stays single-sourced in `hammurabi.__version__` |
 | 2026-09-27 | Deepen the tree to fifteen nodes and make every rung a figure the ruler sees | The six-node tree was bought within twenty years of a marathon, so the development ended long before the reign did and the later rungs were invisible in the numbers; the deeper tree gives the programme a whole reign and a felt effect at every rung (M8) |
@@ -368,6 +444,12 @@ are checked against the code by the suite.
 | 2026-09-27 | Price the health tree as the modest programme — 84,490 bushels against the farming tree's 263,500 | The ladder is what a short reign can actually climb: the first rungs must fit the opening years, and the healer batch shows the cheap measures bought while the deep ones stay out of reach. A ladder priced like the farming one would be unbuyable content rather than a hard programme |
 | 2026-09-27 | Record that the health tree cannot carry a reign instead of adding a harvest rule to make it carry one | Measured: a health-only ruler is impeached for famine after about seven years, and even a city handed the whole tree on the first day dies in the eighth year on the median — the harvest, not medicine, is what keeps a city alive. A fifth rule raising the harvest would have blurred the two rule sets into one bonus, so the tree stands with its four rules and `docs/balancing.md` states what it is worth |
 | 2026-09-27 | Release `1.4.0` | M9 adds a rule set, a module, a flag and engine behaviour, so the minor version moves; the version stays single-sourced in `hammurabi.__version__` |
+| 2026-09-27 | Grow both optional trees to twenty-five nodes and re-space the ladder to about a quarter a rung | Twenty-five rungs on the old third/half-again ladder would put the capstone past a million bushels, out of reach of any reign; re-spacing keeps the whole farming programme at 263,450 bushels and the health programme at 86,070, and the measured arc buys the farming tree out in year 45 instead of 86 — the work of a reign rather than of a lifetime (M10) |
+| 2026-09-27 | Add the deeper branches as further rungs of the four existing branches, not as new branches | The four branches already name every lever the rules expose (acres a bushel of seed, bushels an acre, the rats' share, acres a person); a fifth branch would have had to invent a fifth lever or duplicate one of the four, so the deeper tree is the same four levers, more finely priced |
+| 2026-09-27 | Keep the health ceilings hard: a survivor share below 100%, resistance at +3 and a feeding rate above zero | A plague that takes nobody and a year that costs no grain would abolish the two rules the health tree modifies; the water branch stops at +3, so the plague still comes five years in a hundred, and the food branch stops at thirteen bushels a person (M10) |
+| 2026-09-27 | Restate the arc tests to the measured outcome instead of tuning the ladders to the old claims | The measured tree is bought out in year 45, not 86, and its capstone is now bought by more than half the games: the claims were re-measured and the tests renamed (`test_the_plan_of_the_tree_is_the_work_of_a_reign`) rather than bending the prices to keep an obsolete figure (M10) |
+| 2026-09-27 | Release `1.5.0` | M10 changes both trees, their ladders and the measured balance, so the minor version moves; the version stays single-sourced in `hammurabi.__version__` |
+| 2026-09-27 | Research may only be paid out of the year's **spare grain** — the store less the food the people need and the seed the land needs (M11) | The old gate compared the price with the store alone, so a ruler could pay with the bread of the city: measured over 500 marathons with a costliest-node-first ruler, 326 years ended below the food line because of the purchase. Pricing the food and the seed into the budget turns the discipline `docs/balancing.md` measures into the rule of the game, and because the measured policies already spent only the surplus, both arcs stay bit for bit the same — the change needs no new constant, no extra random draw and no re-measured table |
 
 ## How to update this file
 

@@ -18,10 +18,11 @@ from hammurabi.models import Health
 ALL_KEYS = tuple(item.key for item in health.HEALTH_TREE)
 
 #: The four branches, as the module and the documents name them.
-WATER_KEYS = ("wells", "drained_streets", "brick_drains")
+WATER_KEYS = ("wells", "drained_streets", "brick_drains", "aqueducts")
 HEALER_KEYS = (
     "herb_gatherers",
     "physicians",
+    "apothecaries",
     "doctors",
     "healing_houses",
     "temple_hospital",
@@ -33,8 +34,17 @@ NURSERY_KEYS = (
     "birthing_houses",
     "foundling_home",
     "palace_nursery",
+    "childrens_gardens",
 )
-FOOD_KEYS = ("milled_grain", "kitchen_gardens", "oil_presses", "fish_ponds")
+FOOD_KEYS = (
+    "milled_grain",
+    "kitchen_gardens",
+    "oil_presses",
+    "fish_ponds",
+    "smokehouses",
+    "breweries",
+    "date_presses",
+)
 
 #: The measures that are open from the first year: one of each branch.
 OPENING_KEYS = ("wells", "herb_gatherers", "midwives", "milled_grain")
@@ -46,24 +56,30 @@ UNKNOWN = "irrigation"
 #: this table, ``docs/plan.md`` and the measured batches all have to follow.
 DOCUMENTED_COSTS = (
     ("wells", 100),
-    ("herb_gatherers", 140),
-    ("midwives", 190),
-    ("milled_grain", 250),
-    ("drained_streets", 330),
-    ("physicians", 450),
-    ("wet_nurses", 610),
-    ("kitchen_gardens", 820),
-    ("brick_drains", 1100),
-    ("doctors", 1500),
-    ("milk_herds", 2000),
-    ("oil_presses", 2700),
-    ("healing_houses", 3700),
-    ("birthing_houses", 4900),
-    ("fish_ponds", 6700),
-    ("temple_hospital", 9000),
-    ("foundling_home", 12000),
-    ("palace_nursery", 16000),
-    ("house_of_life", 22000),
+    ("herb_gatherers", 124),
+    ("midwives", 153),
+    ("milled_grain", 190),
+    ("drained_streets", 235),
+    ("physicians", 290),
+    ("wet_nurses", 359),
+    ("kitchen_gardens", 444),
+    ("brick_drains", 550),
+    ("apothecaries", 680),
+    ("milk_herds", 842),
+    ("oil_presses", 1041),
+    ("aqueducts", 1288),
+    ("doctors", 1594),
+    ("birthing_houses", 1972),
+    ("fish_ponds", 2440),
+    ("healing_houses", 3019),
+    ("foundling_home", 3736),
+    ("smokehouses", 4623),
+    ("temple_hospital", 5720),
+    ("palace_nursery", 7078),
+    ("breweries", 8758),
+    ("childrens_gardens", 10836),
+    ("date_presses", 13408),
+    ("house_of_life", 16590),
 )
 
 
@@ -76,18 +92,18 @@ def _unlocked(*keys: str) -> frozenset[str]:
 
 
 def test_the_tree_is_the_documented_branches_and_a_capstone() -> None:
-    """Three water rungs, five healers, six nursery rungs, four of food, one top."""
+    """Four water rungs, six healers, seven nursery rungs, seven of food, one top."""
     assert set(ALL_KEYS) == set(
         WATER_KEYS + HEALER_KEYS + NURSERY_KEYS + FOOD_KEYS + ("house_of_life",)
     )
     assert len(set(ALL_KEYS)) == len(ALL_KEYS)
     assert (len(WATER_KEYS), len(HEALER_KEYS), len(NURSERY_KEYS), len(FOOD_KEYS)) == (
-        3,
-        5,
-        6,
         4,
+        6,
+        7,
+        7,
     )
-    assert len(ALL_KEYS) == 19
+    assert len(ALL_KEYS) == 25
     assert ALL_KEYS[-1] == "house_of_life"
 
 
@@ -96,8 +112,10 @@ def test_the_first_measure_of_a_branch_is_what_the_next_one_needs() -> None:
     chain = {
         "drained_streets": "wells",
         "brick_drains": "drained_streets",
+        "aqueducts": "brick_drains",
         "physicians": "herb_gatherers",
-        "doctors": "physicians",
+        "apothecaries": "physicians",
+        "doctors": "apothecaries",
         "healing_houses": "doctors",
         "temple_hospital": "healing_houses",
         "wet_nurses": "midwives",
@@ -105,9 +123,13 @@ def test_the_first_measure_of_a_branch_is_what_the_next_one_needs() -> None:
         "birthing_houses": "milk_herds",
         "foundling_home": "birthing_houses",
         "palace_nursery": "foundling_home",
+        "childrens_gardens": "palace_nursery",
         "kitchen_gardens": "milled_grain",
         "oil_presses": "kitchen_gardens",
         "fish_ponds": "oil_presses",
+        "smokehouses": "fish_ponds",
+        "breweries": "smokehouses",
+        "date_presses": "breweries",
     }
     for key, needs in chain.items():
         assert health.HEALTH.node(key).requires == _unlocked(needs)
@@ -137,7 +159,7 @@ def test_the_capstone_waits_for_the_deepest_measure_of_every_branch() -> None:
     """The House of Life closes the tree: without a branch it is not on offer."""
     capstone = health.HEALTH.node("house_of_life")
     assert capstone.requires == _unlocked(
-        "brick_drains", "temple_hospital", "palace_nursery", "fish_ponds"
+        "brick_drains", "temple_hospital", "childrens_gardens", "date_presses"
     )
     branches = (WATER_KEYS, HEALER_KEYS, NURSERY_KEYS, FOOD_KEYS)
     for omitted in branches:
@@ -165,12 +187,12 @@ def test_every_measure_costs_the_documented_grain() -> None:
     assert sorted(config.HEALTH_COSTS) == sorted(ALL_KEYS)
 
 
-def test_the_ladder_climbs_by_about_a_third_and_is_the_modest_programme() -> None:
-    """The prices rise by about a third a step, as the farming ladder does."""
+def test_the_ladder_climbs_by_about_a_quarter_and_is_the_modest_programme() -> None:
+    """The prices rise by about a quarter a step, as the farming ladder does."""
     rungs = [cost for _key, cost in DOCUMENTED_COSTS]
     assert rungs == sorted(rungs), "the ladder must be printed cheapest first"
     for lower, upper in zip(rungs, rungs[1:]):
-        assert 1.3 <= upper / lower <= 1.45, f"{lower} -> {upper} leaves the ladder"
+        assert 1.2 <= upper / lower <= 1.3, f"{lower} -> {upper} leaves the ladder"
     assert sum(rungs) < sum(config.TECH_COSTS.values()), (
         "the health tree is the modest programme of the two"
     )
@@ -310,10 +332,10 @@ def test_a_deeper_rate_supersedes_the_measure_below_it() -> None:
 
 
 def test_the_feeding_rate_is_the_one_rate_where_less_wins() -> None:
-    """Milled grain and fish ponds both count; the smaller rate feeds more people."""
-    ponds = health.healers(_unlocked(*FOOD_KEYS)).bushels_per_person
-    assert ponds == config.HEALTH_BUSHELS_PER_PERSON["fish_ponds"]
-    assert ponds == min(config.HEALTH_BUSHELS_PER_PERSON.values())
+    """Milled grain and date presses both count; the smaller rate feeds more people."""
+    pressed = health.healers(_unlocked(*FOOD_KEYS)).bushels_per_person
+    assert pressed == config.HEALTH_BUSHELS_PER_PERSON["date_presses"]
+    assert pressed == min(config.HEALTH_BUSHELS_PER_PERSON.values())
     assert health.healers(_unlocked("milled_grain")).bushels_per_person == (
         config.HEALTH_BUSHELS_PER_PERSON["milled_grain"]
     )
