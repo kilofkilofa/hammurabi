@@ -3,7 +3,7 @@
 > Current level of realisation of [`plan.md`](./plan.md).
 > **Keep this file up to date at the end of every task.**
 
-Last updated: 2026-09-26
+Last updated: 2026-09-27
 
 ## Summary
 
@@ -16,13 +16,16 @@ Last updated: 2026-09-26
 | M4 — CLI options & release packaging | **Done** | `--seed`/`--version`, single-sourced version, non-commercial licence (PolyForm 1.0.0 + `LICENSE`), README (options, how to play, verdicts, development), classifiers and dev extra; `tests/test_packaging.py` |
 | M5 — Hardening & polish | **Done** | Bounded input retries and a per-test watchdog; seeded simulation batches (`tests/policies.py`, `tests/test_simulation.py`); a docs cross-check (`tests/test_docs.py`); measured `docs/balancing.md`; every doc claim corrected against the code; released as `1.0.0` |
 | M6 — Term as a documented rule | **Done** | The classic ten years stay the default, `--years N` (1-1000) selects the term and `--years 100` plays the documented **marathon** rule set; the term travels in `GameState.term_years`, so the engine and the UI never read a global; marathon tests in `test_game.py`, `test_ui.py`, `test_main.py`, `test_simulation.py`; the measured century in `docs/balancing.md`; released as `1.1.0` |
+| M7 — Agriculture rule set | **Done** | `--agriculture` puts the optional farming tech tree of `plan.md` §4 in play: `tech.py` (tree as pure data), `models.Agriculture` + `GameState.agriculture`/`unlocked`, the research step in the engine, the tree table in the UI, `tests/test_tech.py` and agriculture batches in `docs/balancing.md`; released as `1.2.0` |
+| M8 — A tree that takes a lifetime | **Done** | The tree grew to fifteen nodes in four branches and a capstone, every rung a figure the ruler sees (acres per bushel of seed, bushels per acre, acres per person, the rats' share); the prices climb by about half again a rung, so the measured plan buys the capstone in year 86 on the median and 190 of 500 marathons buy the whole tree; the arc is tabulated rung by rung in `docs/balancing.md` and pinned by `test_the_plan_of_the_tree_takes_a_lifetime`; released as `1.3.0` |
 
-Overall: **M0–M6 complete — `1.1.0`.** The rules layer, the yearly engine, the
-`rich` terminal UI, the release metadata, the hardening and the two documented
-term lengths are all in place: `hammurabi`, `python -m hammurabi` and
-`python main.py` play a real game (add `--years 100` for the marathon), seeded
-batches of 500 games per policy guard the rules in both terms, and `docs/plan.md`,
-`README.md` and `docs/balancing.md` are checked against the code by the suite.
+Overall: **M0–M8 complete — `1.3.0`.** The rules layer, the yearly engine, the
+`rich` terminal UI, the release metadata, the hardening and the three documented
+rule sets are all in place: `hammurabi`, `python -m hammurabi` and
+`python main.py` play a real game (add `--years 100` for the marathon and
+`--agriculture` for the fifteen-node farming tech tree), seeded batches of 500
+games per policy guard the rules in every rule set, and `docs/plan.md`, `README.md`
+and `docs/balancing.md` are checked against the code by the suite.
 
 ## Done
 
@@ -165,6 +168,74 @@ batches of 500 games per policy guard the rules in both terms, and `docs/plan.md
 - **M6** — release: `hammurabi.__version__` is `1.1.0`; `plan.md` §4 documents the
   second rule set, §6 its target outcome, `architecture.md` the state field and
   the CLI option, and `README.md` both terms.
+- **M7** — a third rule set, opt-in behind `--agriculture`: the farming tech tree
+  of `plan.md` §4, six nodes in two branches (plough → granaries → draft teams,
+  fallow → irrigation) that meet in the Nippur almanac capstone. The tree lives in
+  the new `tech.py` as pure data with pure helpers (`node`, `available`,
+  `can_research`, `offers`, `settings`), so the engine decides what may be
+  researched without knowing a single rule number.
+- **M7** — the technology travels in the state: `GameState.agriculture` turns the
+  rule set on, `GameState.unlocked` is the frozen set of researched keys, and
+  `models.Agriculture` holds the effective settings (harvest bonus, acres per seed,
+  acres per worker, rat divisor) that the engine derives once a year with
+  `tech.settings()`.
+- **M7** — `rules.py` takes the technology as keyword arguments that default to
+  the vintage values (`harvest_yield(bonus=)`, `rats_eaten(divisor=)`,
+  `seed_cost(acres_per_seed=)`, `max_plantable_acres(acres_per_worker=)`,
+  `can_plant(...)`), so a classic caller keeps the 1978 numbers and the rules
+  never learn which rule set is being played.
+- **M7** — the engine gained one step: after the harvest the ruler may pay for a
+  single node (research costs no random draw, is asked only when the store can
+  afford one, and takes effect in the following years, because the settings are
+  read at the top of a year). The `_ask_until_accepted` helper became generic so
+  the research answer — a node key or nothing — gets the same bounded retry loop
+  and the same engine-side rejection as the four numbers.
+- **M7** — the UI draws the tree as a numbered table with costs and effects, asks
+  for a technology (`0` for none), reports what was researched, announces the rule
+  set in the banner and lists the mastered technologies in the closing report.
+- **M7** — tests: `tests/test_tech.py` for the tree (branches, prerequisites,
+  capstone, costs, settings, the almanac superseding the granaries), the research
+  step in `tests/test_game.py` (cost, unlocking, effect from the next year, the
+  plough's seed rate, the draft teams' labour, rejection and give-up, and a term
+  with the rule set on replayed against the classic one to prove no extra draw),
+  the UI and the CLI, plus a new `FarmerPolicy` and the agriculture ledger,
+  invariants and measured rows in `tests/test_simulation.py`.
+- **M7** — `docs/balancing.md` measures the rule set against the classic game:
+  declining every offer plays the classic term bit for bit (175 of 500 careful
+  games complete), while the farmer who buys the harvest nodes completes 103 in
+  the decade and 103 in the century, against the single classic careful game of
+  500 that survives a hundred years. The tree is documented as a long game: it
+  costs more than it returns within a decade.
+- **M7** — release: `hammurabi.__version__` is `1.2.0`; `plan.md` §4 documents the
+  rule set, §5 records M7, §6 its target outcome, `architecture.md` the new module,
+  the state fields, the turn step and the flag, and `README.md` the option and what
+  the tree costs.
+- **M8** — the tree deepened from six nodes to fifteen, in four branches (fields,
+  seed, store and hands) that meet in the Nippur almanac; every rung is a figure the
+  ruler sees: 2→3→4→5 acres per bushel of seed, +1 bushel per acre five times, the
+  rats' share from a half to a fifth, 10→12→14→16 acres per person.
+- **M8** — `config.TECH_COSTS` became the price ladder (400 to 83,900 bushels,
+  263,500 together, about half again at every rung), `config.TECH_ACRES_PER_SEED`,
+  `TECH_ACRES_PER_WORKER` and `TECH_RAT_DIVISOR` hold the rate each rung reaches,
+  `Tech.cost` reads the ladder, and `tech.settings` adds the harvest bonuses up while
+  the best unlocked rate wins.
+- **M8** — `FarmerPolicy` now researches only out of the surplus left after the food
+  and the seed of the year and records every purchase (`bought`), which is what
+  makes the re-measured batches reproducible; `tests/test_tech.py` was rewritten for
+  the deeper tree (branches, ladder, reachability, rate semantics).
+- **M8** — the UI reports how far the programme has come with the research question
+  ("Your farmers have mastered 1 of 15 technologies.") and the banner names the size
+  of the tree; `tests/test_ui.py` and `tests/test_docs.py` follow. `test_docs.py` now
+  also compares the `plan.md` §4 tree table row by row with `tech.TECH_TREE`.
+- **M8** — `docs/balancing.md` was re-measured. The farmer completes 277 decades
+  where the careful ruler completes 175, and 249 centuries where the careful ruler
+  completes one; 190 of the 500 marathons buy all fifteen rungs, with a median
+  completion year of 86 (mean 85.1, range 68-100), and the whole arc of the tree is
+  tabulated rung by rung. `test_the_plan_of_the_tree_takes_a_lifetime` replays that
+  batch and pins the counts and the years.
+- **M8** — release: `hammurabi.__version__` is `1.3.0`; `plan.md` §4 carries the
+  fifteen-node table and the lifetime rationale, §5 records M8, §6 its target outcome,
+  `README.md` the deeper tree and `architecture.md` the ladder semantics.
 
 ## In progress
 
@@ -178,9 +249,17 @@ batches of 500 games per policy guard the rules in both terms, and `docs/plan.md
 1. **M4** — add `[project.urls]` once the project has a public repository, and
    name the copyright holder in `LICENSE`.
 2. Keep the documents and the engine in step: `tests/test_docs.py` and
-   `tests/test_simulation.py` fail whenever a constant moves and the prose or
-   `docs/balancing.md` does not follow, so a rule change is a documentation
-   change by construction.
+   `tests/test_simulation.py` fail whenever a constant moves and the prose, the
+   `plan.md` §4 tree table or the arc in `docs/balancing.md` does not follow, so a
+   rule change is a documentation change by construction. Retuning the price ladder
+   means re-running the marathon batch and replacing the arc table with it.
+3. **Known issue found during M7** — the bracketed hint of a question is dropped
+   from the *drawn* question: `rich` reads `[you have 2800 bushels, land is 23
+   bushels per acre]` as markup, so the console shows only "How many acres do you
+   wish to buy?" while the reader of the answer still receives the hint (which is
+   what the scripted players use). Escaping the bracket or moving the figures into
+   the question text would fix it, and it changes every rendered transcript, so it
+   deserves its own task.
 
 ## Decision log
 
@@ -219,6 +298,18 @@ batches of 500 games per policy guard the rules in both terms, and `docs/plan.md
 | 2026-09-26 | Credit the original authors and the port author in `NOTICE`, `README.md` and the intro banner | The port follows a game from 1968/1978, so its provenance belongs where the game is played and in the release metadata; saying that the licence covers this repository only keeps the credit honest about what is *not* licensed, and PEP 639 lets `NOTICE` travel with the release through `license-files` |
 | 2026-09-26 | Make the term a documented rule with two rule sets: the classic ten years by default and the 100-year **marathon** behind `--years` | Asked for a hundred-year game; measuring it first showed the vintage starvation rule ends a careful reign around the eleventh year, so a hundred-year term is a survival run rather than a longer game. Keeping ten years as the default preserves the faithful port and its balance figures, while the marathon is one flag away and measured in `docs/balancing.md` |
 | 2026-09-26 | Carry the term in `GameState.term_years` and validate `--years` in `main.py` | The engine and the UI must not read a global: the state already travels through both, so the banner, the closing report and the loop bound all follow the game being played, and the CLI keeps the badly typed numbers (0, negatives, absurdly long terms) out of the engine |
+| 2026-09-27 | Add the farming rule set as opt-in behind `--agriculture`, and keep the classic game the default | The port's contract is the 1978 game: a rule set that changed the default would falsify every measured figure and every classic transcript, so the tree sits one flag away instead |
+| 2026-09-27 | Research costs no random draw: it changes the figures the rules are handed, never the stream of events | The two rule sets can then be measured against each other on the same seeds, and a term played with the rule set on and every offer declined is the classic term bit for bit — `tests/test_game.py` proves it and `docs/balancing.md` shows the identical rows |
+| 2026-09-27 | Keep the tree in a new `tech.py` and hand the technology to `rules.py` as keyword arguments that default to the classic values | `rules.py` stays a pure, rule-set-free layer, the tree is data the tests can read directly, and a classic caller cannot accidentally get a bonus |
+| 2026-09-27 | The rats' divisor takes the strongest value instead of stacking | Granaries halving the loss and the almanac quartering it are alternatives for the same problem; stacking them would leave an eighth and make the rats irrelevant |
+| 2026-09-27 | Ask for research only when the store can afford a node, and pay for it before the immigration formula runs | A question with no acceptable answer would spin the bounded retry loop, and paying before the newcomers keeps the ledger single-entry while making the price of the school visible that year |
+| 2026-09-27 | Record the measured trade-off instead of tuning the tree to beat the classic decade | The notes measure what the rules do; the batches showed the tree is a long game (it costs more than it returns in ten years and turns a 1-in-500 marathon into 103 survivors), and making the vintage decade easier would have been a balance change to the original game in disguise |
+| 2026-09-27 | Release `1.2.0` | M7 adds behaviour, a flag and a module, so the minor version moves; the version stays single-sourced in `hammurabi.__version__` |
+| 2026-09-27 | Deepen the tree to fifteen nodes and make every rung a figure the ruler sees | The six-node tree was bought within twenty years of a marathon, so the development ended long before the reign did and the later rungs were invisible in the numbers; the deeper tree gives the programme a whole reign and a felt effect at every rung (M8) |
+| 2026-09-27 | Price the tree as a ladder that grows by about half again at every rung | The pacing of the programme is money, not the number of nodes: the ladder puts the first rungs within reach of the opening years and the capstone at 83,900 bushels, and the measured completion median lands at 86 years. The top stays below the 130,000 bushels the store settles at while the rats raid it, so the last rung is reachable — but only after decades of surplus |
+| 2026-09-27 | Rates are absolute and the best unlocked rung wins, while the harvest bonuses add up | "3→4 acres per bushel" is a rate, not a bonus: taking the maximum replaces the difference arithmetic of the old deltas, so no two rungs can stack by accident and a retuned ladder cannot silently change what a deeper node means |
+| 2026-09-27 | The measuring farmer keeps a food reserve and researches only out of the surplus of the year | A ruler who empties the store for a cheaper plough starves, and that made the earlier batches chaotic — a hundred bushels of difference in a price moved the century survival rate fourfold; the reserve rule is what a competent player does and it makes the batches a smooth function of the ladder, which is what tuning needs |
+| 2026-09-27 | Release `1.3.0` | M8 changes the tree, its prices and the measured balance, so the minor version moves; the version stays single-sourced in `hammurabi.__version__` |
 
 ## How to update this file
 

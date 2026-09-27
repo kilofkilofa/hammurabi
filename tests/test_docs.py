@@ -17,7 +17,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from hammurabi import __version__, config, rules
+from hammurabi import __version__, config, rules, tech
 from hammurabi.random_source import SeededRandom
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -40,6 +40,10 @@ def _document(*parts: str) -> str:
 PLAN = _document("docs", "plan.md")
 README = _document("README.md")
 BALANCING = _document("docs", "balancing.md")
+
+#: The plan as it is written, line by line: the tables are read from this copy, so
+#: that a row cannot be assembled out of the cells of two neighbouring tables.
+PLAN_SOURCE = ROOT.joinpath("docs", "plan.md").read_text(encoding="utf-8")
 
 
 def _figures(text: str, pattern: str) -> list[tuple[int, ...]]:
@@ -72,6 +76,32 @@ def _number(text: str, pattern: str) -> int:
         f"{pattern!r} matches {found}, expected exactly one number"
     )
     return found[0][0]
+
+
+def _money(text: str, pattern: str) -> int:
+    """Return the thousands-separated figure ``pattern`` captures exactly once."""
+    found = _text_matches(text, pattern)
+    assert len(found) == 1, f"{pattern!r} matches {found}, expected exactly one"
+    return int(found[0].replace(",", ""))
+
+
+def _tree_rows() -> list[tuple[str, int, str, str]]:
+    """Return the rows of the tree table: name, price, prerequisites and effect.
+
+    The tree is the ``| Node | Cost (bushels) | Requires | Effect |`` table of
+    ``plan.md`` §4. The table is read line by line, before the whitespace of the
+    document is collapsed for the prose checks below: that way the cells of the
+    other tables, which have two or three of them, cannot be mistaken for a row.
+    """
+    rows: list[tuple[str, int, str, str]] = []
+    for line in PLAN_SOURCE.splitlines():
+        if not line.startswith("| "):
+            continue
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        if len(cells) == 4 and cells[1].isdigit():
+            rows.append((cells[0], int(cells[1]), cells[2], cells[3]))
+    assert rows, "no tree table in the plan"
+    return rows
 
 
 def _observed_plague_rate() -> float:
@@ -152,6 +182,49 @@ def test_the_specification_quotes_the_constants_it_defines() -> None:
     ]
 
 
+def test_the_specification_lists_every_node_of_the_tree() -> None:
+    """Every node of :data:`hammurabi.tech.TECH_TREE` is in the ``plan.md`` table.
+
+    The table is what the tree is written from, so the rows are compared with the
+    data: the name, the price, the prerequisites and the effect the player reads
+    have to match a node exactly, in tree order.
+    """
+    rows = _tree_rows()
+    assert [name for name, *_rest in rows] == [
+        item.name for item in tech.TECH_TREE
+    ]
+    for name, cost, requires, effect in rows:
+        item = next(item for item in tech.TECH_TREE if item.name == name)
+        assert cost == item.cost, f"{name} costs {cost} in the table"
+        assert effect == item.effect, f"{name} reads differently in the table"
+        named = () if requires == "—" else tuple(requires.split(", "))
+        assert _keys_named(named) == set(item.requires), (
+            f"{name} needs {requires} in the table"
+        )
+
+
+def _keys_named(names: tuple[str, ...]) -> set[str]:
+    """Return the keys of the nodes with the given names, failing loudly."""
+    by_name = {item.name: item.key for item in tech.TECH_TREE}
+    missing = [name for name in names if name not in by_name]
+    assert not missing, f"{missing} are not node names"
+    return {by_name[name] for name in names}
+
+
+def test_the_specification_quotes_the_agriculture_figures() -> None:
+    """The prose of ``plan.md`` §4 names the constants the tree is built from."""
+    assert _number(PLAN, r"tree holds (\d+) nodes") == len(tech.TECH_TREE)
+    assert _money(PLAN, r"together cost ([\d,]+) bushels") == sum(
+        item.cost for item in tech.TECH_TREE
+    )
+    assert _number(PLAN, r"adds at most \+(\d+) bushels per planted acre") == (
+        config.TECH_MAX_YIELD_BONUS
+    )
+    assert _figures(PLAN, r"by (\d+) with the") == [
+        (divisor,) for divisor in config.TECH_RAT_DIVISOR.values()
+    ]
+
+
 def test_the_readme_quotes_the_same_rules() -> None:
     """The player-facing summary and the released version cannot disagree."""
     assert _text_matches(README, r"Project status:\*\* v(\d+\.\d+\.\d+)") == [
@@ -181,6 +254,11 @@ def test_the_readme_quotes_the_same_rules() -> None:
         (config.VERDICT_STARVATION_POOR, config.VERDICT_ACRES_POOR),
         (config.VERDICT_STARVATION_CRITICAL, config.VERDICT_ACRES_CRITICAL),
     ]
+    assert _number(README, r"[Tt]he (\d+) nodes of the tree") == len(tech.TECH_TREE)
+    assert _number(README, r"cost from (\d+) bushels up") == (
+        min(item.cost for item in tech.TECH_TREE)
+    )
+    assert "--agriculture" in README
 
 
 def test_the_balancing_notes_quote_the_same_rules() -> None:

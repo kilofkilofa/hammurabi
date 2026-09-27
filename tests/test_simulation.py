@@ -12,24 +12,27 @@ must hold in *every* game:
 
 Everything is seeded, so the batches are reproducible: nothing here depends on
 luck. The outcomes of the same batches are written down in ``docs/balancing.md``,
-and the two ``test_the_balancing_notes_*`` tests at the end of this module keep
-that document and the engine in step, batch by batch.
+and the ``test_the_balancing_notes_describe_the_batch_they_quote`` test at the end
+of this module keeps that document and the engine in step, batch by batch — the
+classic ones and the two that play the optional agriculture rule set.
 """
 
 from __future__ import annotations
 
+import statistics
 from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import pytest
 
-from hammurabi import config, rules
+from hammurabi import config, rules, tech
 from hammurabi.game import Game
 from hammurabi.models import GameState, Verdict
 from hammurabi.random_source import SeededRandom
 from tests.policies import (
     CarefulPolicy,
+    FarmerPolicy,
     Policy,
     SellerPolicy,
     StarverPolicy,
@@ -61,6 +64,8 @@ class _Year:
         sold: Acres sold this year.
         fed_with: Bushels the engine accepted for feeding the city.
         planted: Acres the engine accepted for sowing.
+        researched: The technology unlocked this year and what it cost, or
+            ``None`` when the year researched nothing.
     """
 
     state: GameState
@@ -73,6 +78,7 @@ class _Year:
     sold: int
     fed_with: int
     planted: int
+    researched: tuple[str, int] | None = None
 
     @property
     def people(self) -> int:
@@ -119,10 +125,14 @@ def _answer(answers: list[tuple[str, int, int, int]], question: str) -> int:
     return found[0] if found else 0
 
 
-def _years(seed: int, policy: type[Policy]):
+def _years(seed: int, policy: type[Policy], *, agriculture: bool = False):
     """Yield every year of one seeded game as a rebuilt :class:`_Year`."""
     ui = policy()
-    game = Game(SeededRandom(seed=seed), ui)
+    game = Game(
+        SeededRandom(seed=seed),
+        ui,
+        state=GameState(agriculture=agriculture),
+    )
     while not game.state.game_over and game.state.year < config.TERM_YEARS:
         seen_calls = len(ui.calls)
         seen_answers = len(ui.answers)
@@ -141,6 +151,8 @@ def _years(seed: int, policy: type[Policy]):
             people = opening
         _, status_population, store = _only(calls, "status")
         assert status_population == people, "the status must open the year"
+        researched = _calls(calls, "research")
+        assert len(researched) <= 1, "at most one research a year"
         yield _Year(
             state=game.state,
             reported_population=population,
@@ -152,6 +164,7 @@ def _years(seed: int, policy: type[Policy]):
             sold=_answer(answers, "sell"),
             fed_with=_answer(answers, "feed"),
             planted=_answer(answers, "plant"),
+            researched=(researched[0][1], researched[0][2]) if researched else None,
         )
 
 
@@ -189,6 +202,49 @@ def test_the_grain_in_the_store_balances_for_every_year(policy: type[Policy]) ->
             assert state.bushels == expected, (
                 f"seed {seed}, year {state.year}: {store} bushels at the harvest "
                 f"do not lead to a store of {state.bushels}"
+            )
+
+
+def test_the_grain_in_the_store_balances_when_the_ruler_researches() -> None:
+    """The rule set adds one line to the ledger: research is paid from the store.
+
+    The seed, the labour and the harvest all follow the technology unlocked at
+    the *start* of the year, because a node bought in December only shows in the
+    following year's fields.
+    """
+    for seed in range(GAMES):
+        for year in _years(seed, FarmerPolicy, agriculture=True):
+            state = year.state
+            researched = year.researched
+            bought_now = {researched[0]} if researched else set()
+            settings = tech.settings(state.unlocked - bought_now)
+            store = year.store + (year.sold - year.bought) * year.price
+            store -= year.fed_with
+            assert rules.can_plant(
+                year.planted,
+                owned=year.acres + year.bought - year.sold,
+                bushels=store,
+                population=year.people,
+                acres_per_seed=settings.acres_per_seed,
+                acres_per_worker=settings.acres_per_worker,
+            )
+            store -= rules.seed_cost(
+                year.planted, acres_per_seed=settings.acres_per_seed
+            )
+            assert 0 <= state.rats_ate_this_year <= store
+            expected = (
+                store
+                - state.rats_ate_this_year
+                + rules.harvest(year.planted, state.yield_per_acre)
+            )
+            if researched is not None:
+                key, cost = researched
+                assert cost == tech.node(key).cost
+                assert key in state.unlocked, "the store paid for nothing"
+                expected -= cost
+            assert state.bushels == expected, (
+                f"seed {seed}, year {state.year}: the harvest, the rats and the "
+                f"research do not lead to a store of {state.bushels}"
             )
 
 
@@ -234,6 +290,21 @@ def test_no_game_ever_breaks_a_resource_invariant(policy: type[Policy]) -> None:
             assert state.starved_this_year >= 0
             assert config.YIELD_MIN <= state.yield_per_acre <= config.YIELD_MAX
             assert state.rats_ate_this_year >= 0
+
+
+def test_no_agriculture_game_ever_breaks_a_resource_invariant() -> None:
+    """The rule set keeps the store, the land and the tree inside their bounds."""
+    for seed in range(GAMES):
+        for year in _years(seed, FarmerPolicy, agriculture=True):
+            state = year.state
+            assert state.acres >= 1, "the last acre may not be sold"
+            assert state.bushels >= 0, "the store may not go negative"
+            assert state.agriculture is True
+            assert all(tech.node(key).key == key for key in state.unlocked)
+            assert len(state.unlocked) <= len(tech.TECH_TREE)
+            assert config.YIELD_MIN <= state.yield_per_acre <= (
+                config.YIELD_MAX + config.TECH_MAX_YIELD_BONUS
+            )
 
 
 @pytest.mark.parametrize("policy", POLICIES, ids=IDS)
@@ -358,56 +429,52 @@ def _documented_row(label: str) -> list[int]:
     raise AssertionError(f"no '| {label} |' row in {BALANCING_NOTES}")
 
 
-def test_the_balancing_notes_describe_the_careful_batch() -> None:
-    """``docs/balancing.md`` quotes the batch this engine really plays."""
+#: The batches ``docs/balancing.md`` quotes and this module replays: the label of
+#: the row, the policy, the rule set and the length of the term. The agriculture
+#: rows are what the second rule set is measured by, so the notes cannot claim
+#: anything about it that the engine does not do.
+BATCHES = [
+    ("careful", CarefulPolicy, False, config.TERM_YEARS),
+    ("careful (marathon)", CarefulPolicy, False, config.MARATHON_TERM_YEARS),
+    ("careful (agriculture)", CarefulPolicy, True, config.TERM_YEARS),
+    ("farmer (agriculture)", FarmerPolicy, True, config.TERM_YEARS),
+    (
+        "farmer (agriculture, marathon)",
+        FarmerPolicy,
+        True,
+        config.MARATHON_TERM_YEARS,
+    ),
+]
+BATCH_IDS = [label for label, *_ in BATCHES]
+
+#: The verdicts in the order the balancing tables list them.
+ORDER = (Verdict.FANTASTIC, Verdict.MEDIOCRE, Verdict.TYRANT, Verdict.IMPEACHED)
+
+
+@pytest.mark.parametrize(
+    ("label", "policy", "agriculture", "term_years"), BATCHES, ids=BATCH_IDS
+)
+def test_the_balancing_notes_describe_the_batch_they_quote(
+    label: str, policy: type[Policy], agriculture: bool, term_years: int
+) -> None:
+    """``docs/balancing.md`` quotes the batches this engine really plays."""
     verdicts: Counter[Verdict] = Counter()
     completed = 0
     for seed in range(GAMES):
-        game, ui = play_game(seed, CarefulPolicy)
+        game, ui = play_game(
+            seed, policy, term_years=term_years, agriculture=agriculture
+        )
         verdicts[game.state.verdict] += 1
         completed += _finished(ui)
 
     games, documented_completed, documented_impeached, *documented_verdicts = (
-        _documented_row("careful")
+        _documented_row(label)
     )
     assert games == GAMES, f"{BALANCING_NOTES} quotes {games} games, not {GAMES}"
     assert documented_completed == completed
     assert documented_impeached == GAMES - completed
-    documented = dict(
-        zip(
-            (Verdict.FANTASTIC, Verdict.MEDIOCRE, Verdict.TYRANT, Verdict.IMPEACHED),
-            documented_verdicts,
-            strict=True,
-        )
-    )
-    assert documented == dict(verdicts), (
-        f"{BALANCING_NOTES} quotes other verdict counts: {documented} != {verdicts}"
-    )
-
-
-def test_the_balancing_notes_describe_the_marathon_batch() -> None:
-    """The marathon row of ``docs/balancing.md`` is this engine's own result."""
-    verdicts: Counter[Verdict] = Counter()
-    completed = 0
-    for seed in range(GAMES):
-        game, ui = play_game(seed, CarefulPolicy, term_years=config.MARATHON_TERM_YEARS)
-        verdicts[game.state.verdict] += 1
-        completed += _finished(ui)
-
-    games, documented_completed, documented_impeached, *documented_verdicts = (
-        _documented_row("careful (marathon)")
-    )
-    assert games == GAMES, f"{BALANCING_NOTES} quotes {games} games, not {GAMES}"
-    assert documented_completed == completed
-    assert documented_impeached == GAMES - completed
-    documented = dict(
-        zip(
-            (Verdict.FANTASTIC, Verdict.MEDIOCRE, Verdict.TYRANT, Verdict.IMPEACHED),
-            documented_verdicts,
-            strict=True,
-        )
-    )
-    expected = {verdict: verdicts[verdict] for verdict in documented}
+    documented = dict(zip(ORDER, documented_verdicts, strict=True))
+    expected = {verdict: verdicts[verdict] for verdict in ORDER}
     assert documented == expected, (
         f"{BALANCING_NOTES} quotes other verdict counts: {documented} != {expected}"
     )
@@ -432,3 +499,72 @@ def test_a_marathon_term_never_runs_past_its_last_year(policy: type[Policy]) -> 
             assert rules.is_impeached(
                 game.state.population, game.state.starved_this_year
             )
+
+
+# --- The arc of the whole tree -----------------------------------------------
+
+#: What ``docs/balancing.md`` records of the tree, node by node, over the 500-game
+#: marathon batch: the keys in tree order, the games that ever bought the node, and
+#: the mean and the median year they bought it in.
+TREE_ARC = (
+    ("plough", 300, 4.5, 5),
+    ("fallow", 333, 1.1, 1),
+    ("granaries", 307, 3.5, 3),
+    ("manuring", 308, 2.3, 2),
+    ("draft_teams", 290, 6.4, 6),
+    ("heavy_plough", 279, 8.0, 8),
+    ("rotation", 291, 5.1, 5),
+    ("silos", 282, 8.2, 8),
+    ("iron_ploughshares", 275, 11.8, 12),
+    ("seed_drill", 269, 15.9, 16),
+    ("flood_farming", 264, 22.2, 22),
+    ("vaults", 259, 30.0, 29),
+    ("harvest_crews", 255, 41.7, 41),
+    ("seed_corn", 252, 62.1, 60),
+    ("almanac", 190, 85.1, 86),
+)
+
+#: Games that bought every node before the century ended, and the median year the
+#: last one was paid for — the figure ``plan.md`` §4 calls eighty to ninety years.
+TREE_FINISHED = 190
+TREE_COMPLETION_MEDIAN = 86
+
+
+def test_the_plan_of_the_tree_takes_a_lifetime() -> None:
+    """The whole programme is a lifetime's work, and ``balancing.md`` has the arc.
+
+    This is the measurement behind the claim of ``plan.md`` §4 that the tree takes
+    eighty to ninety years to buy: the same 500-game marathon batch as the tables
+    of ``docs/balancing.md``, read node by node. Retuning the price ladder fails
+    here until the notes are re-measured as well.
+    """
+    bought: dict[str, list[int]] = {item.key: [] for item in tech.TECH_TREE}
+    completion: list[int] = []
+    for seed in range(GAMES):
+        _game, ui = play_game(
+            seed,
+            FarmerPolicy,
+            term_years=config.MARATHON_TERM_YEARS,
+            agriculture=True,
+        )
+        for year, key in ui.bought:
+            bought[key].append(year)
+        if len(ui.bought) == len(tech.TECH_TREE):
+            completion.append(max(year for year, _key in ui.bought))
+
+    assert 80 <= TREE_COMPLETION_MEDIAN <= 90, "the window the plan is documented in"
+    assert len(completion) == TREE_FINISHED
+    assert statistics.median(completion) == TREE_COMPLETION_MEDIAN
+
+    for key, games, mean_year, median_year in TREE_ARC:
+        years = bought[key]
+        assert len(years) == games, f"{key} was bought by {len(years)} games"
+        assert round(statistics.mean(years), 1) == mean_year, f"{key} mean year"
+        assert statistics.median(years) == median_year, f"{key} median year"
+
+    # Every rung but the capstone is bought by at least half the games, and the
+    # capstone by far fewer: the last stretch of the ladder is what a reign runs
+    # out of time for.
+    assert all(games >= GAMES // 2 for _key, games, *_rest in TREE_ARC[:-1])
+    assert TREE_ARC[-1][1] < GAMES // 2
+

@@ -120,3 +120,73 @@ MAX_TERM_YEARS = 1000
 # the engine, and a CPU, forever.
 MAX_ANSWER_ATTEMPTS = 100
 
+# --- Agriculture rule set (``--agriculture``) --------------------------------
+
+# The optional rule set of ``plan.md`` section 4: the farming technologies of
+# Sumeria, fifteen nodes the ruler pays for out of the grain in store. Its nodes
+# are described in :mod:`hammurabi.tech`; the classic game researches nothing and
+# every value below is reachable only through that flag.
+#
+# The prices form a ladder that grows by about half again at every step, so the
+# first nodes are affordable in the opening years while the last ones cost what
+# many harvests leave over — the grain in store settles below 130,000 bushels
+# while the rats raid it, so the top of the ladder stays within reach. That is what
+# spreads the whole programme over a reign rather than over a decade: the measured
+# plan of ``docs/balancing.md`` needs eighty to ninety years to buy the tree to its
+# capstone, the fifteen nodes together costing 263,500 bushels.
+
+# Bushels of grain each node of the tree costs to research, keyed by the node key
+# of :data:`hammurabi.tech.TECH_TREE`.
+TECH_COSTS: dict[str, int] = {
+    "plough": 400,
+    "fallow": 600,
+    "granaries": 850,
+    "manuring": 1250,
+    "draft_teams": 1850,
+    "heavy_plough": 2700,
+    "rotation": 3950,
+    "silos": 5800,
+    "iron_ploughshares": 8500,
+    "seed_drill": 12450,
+    "flood_farming": 18200,
+    "vaults": 26700,
+    "harvest_crews": 39100,
+    "seed_corn": 57250,
+    "almanac": 83900,
+}
+
+# Bushels per acre each field node adds to the harvest roll: the five of the
+# fallow-fields branch plus the Nippur almanac. The six together are the most the
+# tree can give, which the tests pin to TECH_MAX_YIELD_BONUS.
+TECH_YIELD_BONUS_PER_NODE = 1
+TECH_YIELD_BONUS_ALMANAC = 1
+TECH_MAX_YIELD_BONUS = 5 * TECH_YIELD_BONUS_PER_NODE + TECH_YIELD_BONUS_ALMANAC
+
+# Acres one bushel of seed sows once the seed-rate nodes are unlocked; the classic
+# rule sows ACRES_PER_SEED_BUSHEL acres. The most advanced node the ruler owns is
+# the rate in force, because these are rates rather than bonuses.
+TECH_ACRES_PER_SEED: dict[str, int] = {
+    "plough": 3,
+    "heavy_plough": 4,
+    "seed_drill": 5,
+}
+
+# Acres one person can tend once the labour nodes are unlocked; the classic rule
+# is ACRES_PER_WORKER acres.
+TECH_ACRES_PER_WORKER: dict[str, int] = {
+    "draft_teams": 12,
+    "iron_ploughshares": 14,
+    "harvest_crews": 16,
+}
+
+# Divisors applied to the bushels the rats eat. Granaries halve the loss, sealed
+# silos take a third, temple vaults a quarter and the Nippur almanac leaves the
+# rats a fifth of it. The strongest unlocked divisor wins rather than stacking, so
+# the almanac supersedes the vaults once both are unlocked.
+TECH_RAT_DIVISOR: dict[str, int] = {
+    "granaries": 2,
+    "silos": 3,
+    "vaults": 4,
+    "almanac": 5,
+}
+

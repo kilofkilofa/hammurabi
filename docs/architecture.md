@@ -44,7 +44,8 @@ hammurabi/
 │       ├── __main__.py     # enables `python -m hammurabi`
 │       ├── main.py         # CLI entry point: builds RNG + UI, starts a game
 │       ├── config.py       # all rule constants in one place
-│       ├── models.py       # Verdict enum and the GameState dataclass
+│       ├── models.py       # Verdict enum, Agriculture and the GameState dataclass
+│       ├── tech.py         # the optional agriculture tech tree (pure data)
 │       ├── rules.py        # pure rule functions (no I/O)
 │       ├── random_source.py# the RNG seam: RandomSource protocol + SeededRandom
 │       ├── game.py         # Game engine, yearly loop and the UI protocol
@@ -55,6 +56,7 @@ hammurabi/
     │                       # buffer-backed console and scripted player
     ├── policies.py         # player policies for the simulation tests
     ├── test_rules.py       # unit tests for every rule
+    ├── test_tech.py        # unit tests for the agriculture tech tree
     ├── test_game.py        # unit and integration tests for the engine
     ├── test_ui.py          # rendering, prompts and stop behaviour of the UI
     ├── test_simulation.py  # seeded batches: invariants and the balance figures
@@ -67,13 +69,14 @@ hammurabi/
 
 | Module | Responsibility | Depends on |
 | --- | --- | --- |
-| `config.py` | Named constants for every tunable rule (start values, prices, thresholds, rates). No logic. | — |
-| `models.py` | `GameState` dataclass holding the term length, the year, population, acres, bushels and the running statistics; small enums such as `Verdict`. | `config` |
-| `rules.py` | Pure functions: land price, harvest yield, rat loss, immigration, plague, people fed, starvation, impeachment, input validation and the final verdict. | `config`, `models`, `random_source` |
+| `config.py` | Named constants for every tunable rule (start values, prices, thresholds, rates, the agriculture price ladder, its rates and its bonuses). No logic. | — |
+| `models.py` | `GameState` dataclass holding the term length, the rule-set flag, the unlocked technologies, the year, population, acres, bushels and the running statistics; the `Agriculture` settings the rules are handed; small enums such as `Verdict`. | `config` |
+| `tech.py` | The optional agriculture rule set as pure data: the fifteen nodes of the tree in four branches and a capstone, each with its price, prerequisites and effect, plus the pure helpers `node`, `available`, `can_research`, `offers` and `settings` that fold the unlocked nodes into `Agriculture` — the harvest bonuses add up and the best rate unlocked wins. No I/O, no state, no RNG. | `config`, `models` |
+| `rules.py` | Pure functions: land price, harvest yield, rat loss, immigration, plague, people fed, starvation, impeachment, input validation and the final verdict. The farming technology enters as keyword arguments that default to the classic values. | `config`, `models`, `random_source` |
 | `random_source.py` | The RNG seam: a `RandomSource` protocol (`random`, `randint`) plus the `SeededRandom` implementation backed by `random.Random`. Tests inject a scripted stub. | — |
-| `game.py` | `Game` engine: owns a `GameState`, runs the yearly loop, applies rules, updates statistics, decides game over. Also defines the `UI` protocol that the engine consumes. | `config`, `models`, `rules` |
-| `ui.py` | `ConsoleUI`: renders reports via `rich`, asks the player for the yearly numbers, prints error, impeachment and end-of-term messages. Implements the `UI` protocol from `game.py`; the engine validates every answer, so no rule knowledge ends up here. | `rich`, `game`, `models` |
-| `main.py` | Entry point: parse args (`--seed`, `--years`), construct the starting state, RNG and UI, run `Game`. | `game`, `models`, `ui`, `random_source` |
+| `game.py` | `Game` engine: owns a `GameState`, runs the yearly loop, applies rules, asks for one research a year when the agriculture rule set is on, updates statistics, decides game over. Also defines the `UI` protocol that the engine consumes. | `config`, `models`, `rules`, `tech` |
+| `ui.py` | `ConsoleUI`: renders reports via `rich`, asks the player for the yearly numbers and for a technology when the rule set offers one, prints error, impeachment and end-of-term messages. Implements the `UI` protocol from `game.py`; the engine validates every answer, so no rule knowledge ends up here. | `rich`, `game`, `models`, `tech` |
+| `main.py` | Entry point: parse args (`--seed`, `--years`, `--agriculture`), construct the starting state, RNG and UI, run `Game`. | `game`, `models`, `ui`, `random_source` |
 | `__main__.py` | Allows `python -m hammurabi`. | `main` |
 
 The `UI` protocol lives in `game.py` rather than `ui.py` because the engine owns
@@ -86,10 +89,19 @@ without a terminal.
 ## 4. Data model
 
 ```python
+@dataclass(frozen=True)
+class Agriculture:
+    yield_bonus: int = 0                            # bushels added to a harvest
+    acres_per_seed: int = 2                         # acres one seed bushel sows
+    acres_per_worker: int = 10                      # acres one person can tend
+    rat_divisor: int = 1                            # extra divisor on the rats
+
 @dataclass
 class GameState:
     year: int = 0                 # years elapsed (0 before the first report)
     term_years: int = 10          # length of the term: the classic ten years
+    agriculture: bool = False     # the optional farming rule set is in play
+    unlocked: frozenset[str] = frozenset()  # farming technologies researched
     population: int = 95
     acres: int = 1000
     bushels: int = 2800
@@ -107,7 +119,10 @@ class GameState:
 ```
 
 `GameState` is the single source of truth for a game. `rules.py` never mutates
-it; `game.py` owns the transitions.
+it; `game.py` owns the transitions. `Agriculture` is the derived value: the engine
+reads it once a year with `tech.settings(state.unlocked)` and hands its fields to
+the rules, which is why `rules.py` needs no rule-set knowledge and a classic game
+simply passes the defaults.
 
 ## 5. Turn lifecycle
 
@@ -121,8 +136,9 @@ report (starved, immigrants) -> the announced immigrants join the city
 plague? (halves the population) -> status (population, acres, yield, rats, store)
 land price -> buy land --(nothing bought)--> sell land
 feed -> starvation and the running average -> the population shrinks
-plant seed (land, seed and labour checked)
+plant seed (land, seed and labour checked against the farming technology)
 harvest yield -> rats raid the pre-harvest store -> store += harvest - rats
+research? (agriculture rule set: one node, paid from the store)
 immigrants for the next report
 impeachment? (more than 45% starved) -> game over
 term over? -> the undrawn closing report adds the last immigrants and plague,
@@ -149,10 +165,11 @@ lines the UI raises `RuntimeError` too.
 | Level | What it covers | Location |
 | --- | --- | --- |
 | Unit — rules | Every pure function in `rules.py` with fixed RNG stubs and boundary values | `tests/test_rules.py` |
+| Unit — tree | The agriculture tech tree: its branches, prerequisites, price ladder and the settings it folds into `Agriculture` | `tests/test_tech.py` |
 | Unit — engine | Year transitions with a fake RNG and a scripted UI; impeachment path | `tests/test_game.py` |
 | Unit — UI | Every report, table, prompt and closing panel rendered into a buffer; the answer loop that re-asks and gives up | `tests/test_ui.py` |
 | Integration | A seeded game played to completion produces a stable verdict; a whole term played through the real console UI with a scripted player | `tests/test_game.py`, `tests/test_ui.py` |
-| Simulation | Seeded batches of whole games per policy: the cross-game invariants (grain never negative, population only rises through immigrants, a verdict is always reached, years never exceed the term) and the figures recorded in `docs/balancing.md` | `tests/test_simulation.py`, `tests/policies.py` |
+| Simulation | Seeded batches of whole games per policy, playing the classic rule set and the agriculture one: the cross-game invariants (grain never negative, the store balances with the research included, population only rises through immigrants, a verdict is always reached, years never exceed the term), the arc of the tree over a marathon batch (the year each rung is bought, the median completion year) and the figures recorded in `docs/balancing.md` | `tests/test_simulation.py`, `tests/policies.py` |
 | Documentation | Every figure quoted in `docs/plan.md`, `README.md` and `docs/balancing.md` is compared with the constant it documents, so a rule change fails the build | `tests/test_docs.py` |
 | Smoke | `main()` plays a scripted game, stops cleanly when the input ends, forwards `--seed` and `--years`, refuses a term it cannot play; `python -m hammurabi` runs with a closed stdin | `tests/test_main.py` |
 | Packaging | The installed distribution matches `__version__`, the console script points at `hammurabi.main:main`, and `pyproject.toml` declares the release metadata with no literal version of its own | `tests/test_packaging.py` |
@@ -166,7 +183,8 @@ Guidelines:
 - Keep the UI out of tests by using a fake `UI` implementation, and never let a
   test read the real terminal: `ConsoleUI` takes an injected `read` callable.
 - Share the doubles: `tests/support.py` provides `StubRandom` (a scripted random
-  source), `FakeUI` (records every call and replays scripted answers),
+  source), `FakeUI` (records every call and replays scripted answers, research
+  nodes included),
   `CarefulUI` (plays whole games as a rule-aware player) and, for the UI tests,
   `plain_console` (a buffer-backed console), `render` (collapses the wrapping a
   `rich` console adds) and `careful_console_answers` (a player that answers from
@@ -241,9 +259,11 @@ of leaving a stray process spinning a core.
   and reads that attribute, so the installed distribution, `hammurabi --version`
   and the package can never disagree; `tests/test_packaging.py` guards it.
 - Version policy: `0.x` while the target outcome in `plan.md` §6 was incomplete;
-  `1.0.0` marks that outcome being met (the end of M5), and `1.1.0` adds the
-  documented term choice (M6). Any later change needs a new patch or minor
-  version, never an edit of an existing release.
+  `1.0.0` marks that outcome being met (the end of M5), `1.1.0` adds the
+  documented term choice (M6), `1.2.0` the optional agriculture rule set (M7) and
+  `1.3.0` the fifteen-node tree whose price ladder spreads the programme over a
+  lifetime (M8). Any later change needs a new patch or minor version, never an
+  edit of an existing release.
 - Nothing built is committed: `.venv/`, `*.egg-info/`, `dist/` and `build/` are
   ignored and recreated by `pip install -e ".[dev]"`.
 
@@ -257,9 +277,13 @@ of leaving a stray process spinning a core.
   render it in `ui.py`.
 - **Alternate rule sets:** the term lengths are the first documented case — the
   classic ten years and the marathon century live in `config.py` and travel in
-  `GameState.term_years`, so `Game` and `ConsoleUI` never read a global. A wider
-  rule set would go the same way: a `Settings` object with defaults from
-  `config.py`, passed into the state or the engine.
+  `GameState.term_years`, so `Game` and `ConsoleUI` never read a global. The
+  agriculture rule set is the second: `GameState.agriculture` turns it on, the
+  tree lives in `tech.py`, the engine derives an `Agriculture` value from
+  `GameState.unlocked` once a year and passes its fields to the rules as
+  keyword arguments that default to the classic numbers. A wider rule set would
+  go the same way: data plus defaults in `config.py`, with the derived settings
+  passed into the rules rather than read from a global.
 
 ## 10. Glossary
 

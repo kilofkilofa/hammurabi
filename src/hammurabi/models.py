@@ -25,6 +25,30 @@ class Verdict(Enum):
     FANTASTIC = "fantastic"  # an outstanding performance
 
 
+@dataclass(frozen=True)
+class Agriculture:
+    """The farming technology in force in a game.
+
+    The classic game plays with the defaults below and never researches
+    anything. The optional agriculture rule set raises them through the tech tree
+    in :mod:`hammurabi.tech`; the engine reads the resulting values once a year
+    and passes them to the rules as plain arguments, so ``rules.py`` never has to
+    know which rule set is being played.
+
+    Attributes:
+        yield_bonus: Bushels added to every harvest roll (classic: none).
+        acres_per_seed: Acres one bushel of seed sows (classic: 2).
+        acres_per_worker: Acres one person can tend (classic: 10).
+        rat_divisor: Extra divisor applied to the rats' share of the store
+            (classic: 1, i.e. the rats eat ``store / roll``).
+    """
+
+    yield_bonus: int = 0
+    acres_per_seed: int = config.ACRES_PER_SEED_BUSHEL
+    acres_per_worker: int = config.ACRES_PER_WORKER
+    rat_divisor: int = 1
+
+
 @dataclass
 class GameState:
     """The complete mutable state of one game.
@@ -33,6 +57,11 @@ class GameState:
         year: Number of years elapsed (2 means the game is in its second year).
         term_years: Length of the term being played, in years: the classic ten
             unless the marathon was chosen.
+        agriculture: Whether the optional agriculture rule set is in play, in
+            which case the ruler may research the farming technologies of
+            :mod:`hammurabi.tech` while the term runs.
+        unlocked: Keys of the farming technologies researched so far; empty in
+            every classic game.
         population: People currently living in the city.
         acres: Acres of land owned.
         bushels: Bushels of grain in the store.
@@ -55,6 +84,8 @@ class GameState:
 
     year: int = 0
     term_years: int = config.TERM_YEARS
+    agriculture: bool = False
+    unlocked: frozenset[str] = frozenset()
     population: int = config.START_POPULATION
     acres: int = config.START_ACRES
     bushels: int = config.START_BUSHELS

@@ -6,13 +6,16 @@ in 1968 and popularised by David H. Ahl's *101 BASIC Computer Games* (1978).
 
 Govern the city-state of Sumeria for the classic 10-year term — or ask for a
 100-year marathon — buying and selling land, feeding your people and planting
-grain while harvests, rats, immigration and plague decide your fate.
+grain while harvests, rats, immigration and plague decide your fate. Add
+`--agriculture` and you may also pay for the farming technologies of Sumeria.
 
-> **Project status:** v1.1.0 — the full target outcome of
-> [`docs/plan.md`](docs/plan.md) §6 is met, and M6 adds the second documented rule
-> set: the classic ten years stay the default while `--years 100` plays the
-> marathon, whose measured outcome is in
-> [`docs/balancing.md`](docs/balancing.md). See
+> **Project status:** v1.3.0 — the full target outcome of
+> [`docs/plan.md`](docs/plan.md) §6 is met. M8 deepened the optional agriculture
+> rule set into a fifteen-node tree whose price ladder spreads the whole
+> programme over eighty to ninety years; M7 put that rule set behind
+> `--agriculture`, and M6 added the second documented rule set — the classic ten
+> years stay the default while `--years 100` plays the marathon. The measured
+> outcome of both is in [`docs/balancing.md`](docs/balancing.md). See
 > [`docs/progress.md`](docs/progress.md).
 
 ## Requirements
@@ -61,6 +64,7 @@ Options:
 hammurabi --help      # usage and options
 hammurabi --seed 42   # replay a game: the same seed brings the same events
 hammurabi --years 100 # the marathon: the same rules for a century
+hammurabi --agriculture # the farming tech tree: research out of the grain in store
 hammurabi --version   # print the version
 ```
 
@@ -82,6 +86,19 @@ with seed. Answer with whole numbers.
 - Land costs 17–26 bushels per acre, and the price is fixed for the whole year.
 - Harvests, rats, immigrants and plague are random — and starving more than 45%
   of the city in one year ends your reign at once.
+
+Add `--agriculture` and each year also asks which farming technology to research,
+or `0` for none. The 15 nodes of the tree cost from 400 bushels up, paid out of
+the grain in store: the ox-drawn plough, the heavy plough and the seed drill let a
+bushel of seed sow 3, 4 and then 5 acres; fallow fields, manuring, crop rotation,
+flood farming and the selected seed corn add a bushel per acre each; the granaries,
+the sealed silos, the temple vaults and the Nippur almanac cut what the rats eat;
+and the draft teams, the iron ploughshares and the harvest crews let one person
+tend 12, 14 and then 16 acres. The price climbs by about half again at every rung,
+so the whole programme is the work of a lifetime: measured over five hundred
+marathons, the last node is bought in year 86 on the median, and the classic decade
+is only the first few rungs — [`docs/balancing.md`](docs/balancing.md) has the
+figures.
 
 A line that is not a whole number, or an amount the rules cannot accept, is
 explained and asked for again. When the term ends the game judges you on the

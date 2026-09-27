@@ -16,16 +16,27 @@ The engine performs no I/O of its own. Everything the player sees or answers
 travels through an injected :class:`UI`, and all randomness comes from an
 injected :class:`~hammurabi.random_source.RandomSource`. That keeps a game
 reproducible from a seed and testable without a terminal.
+
+The classic rule set is what a fresh :class:`~hammurabi.models.GameState` asks
+for. When ``GameState.agriculture`` is true the engine also lets the ruler pay
+for one node of the tech tree in :mod:`hammurabi.tech` a year; the unlocked
+nodes are read into farming settings at the top of a year, so research takes
+effect in the year that follows. Research costs no random draw, so a seed
+produces exactly the same events with and without the rule set.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Protocol
+from collections.abc import Callable, Sequence
+from typing import Protocol, TypeVar
 
-from hammurabi import config, rules
-from hammurabi.models import GameState, Verdict
+from hammurabi import config, rules, tech
+from hammurabi.models import Agriculture, GameState, Verdict
 from hammurabi.random_source import RandomSource
+
+#: Type of an answer the engine asks for until it can accept it. The four
+#: questions answer with a number, the research question with a node key.
+_Answer = TypeVar("_Answer")
 
 
 class UI(Protocol):
@@ -62,6 +73,18 @@ class UI(Protocol):
 
     def ask_acres_to_plant(self, state: GameState) -> int:
         """Return how many acres the player wants to sow with seed."""
+
+    def ask_research(
+        self, state: GameState, choices: Sequence[tech.Tech]
+    ) -> str | None:
+        """Return the key of the technology to research, or ``None`` for none.
+
+        Asked only when the agriculture rule set is in play and ``choices``, the
+        nodes the store can pay for, is not empty.
+        """
+
+    def show_research(self, researched: tech.Tech) -> None:
+        """Report that the ruler has started to research ``researched``."""
 
     def show_error(self, message: str) -> None:
         """Explain why the last answer was rejected; the engine asks again."""
@@ -137,7 +160,9 @@ class Game:
         The steps follow the order the original listing documents: open the year
         with its report, trade land, feed the people, sow and harvest, let the rats
         and the immigrants in, roll the plague for the year to come and finally
-        tally the hunger.
+        tally the hunger. With the agriculture rule set the ruler may also start
+        one research between the harvest and the newcomers, because research is
+        paid out of the grain the year actually produced.
 
         The population is only reduced in that last step, exactly as in the
         listing (``555 P=C``). Sowing and the immigration formula therefore
@@ -149,11 +174,16 @@ class Game:
         if self.state.game_over or self.state.year >= self.state.term_years:
             raise RuntimeError("cannot play another year: the term is over")
 
+        # The farming technology in force this year: research started in an
+        # earlier year, so a node unlocked now only pays off from the next one.
+        settings = tech.settings(self.state.unlocked)
+
         self._open_year()
         self._trade_land()
         fed = self._feed_people()
-        acres_planted = self._plant_grain()
-        self._harvest_and_rats(acres_planted)
+        acres_planted = self._plant_grain(settings)
+        self._harvest_and_rats(acres_planted, settings)
+        self._research()
         self._invite_immigrants()
         self._roll_plague_for_next_year()
         self._settle_starvation(fed)
@@ -201,22 +231,22 @@ class Game:
 
     def _ask_until_accepted(
         self,
-        answer: Callable[[], int],
-        accepted: Callable[[int], bool],
-        complaint: Callable[[int], str],
-    ) -> int:
+        answer: Callable[[], _Answer],
+        accepted: Callable[[_Answer], bool],
+        complaint: Callable[[_Answer], str],
+    ) -> _Answer:
         """Ask ``answer`` until it is accepted, or give up after too many tries.
 
         A rejected answer is explained through :meth:`UI.show_error` and the
         question is put again, which is what a patient ruler expects. The retry
         loop is bounded by ``config.MAX_ANSWER_ATTEMPTS``, so a UI that can never
-        produce a valid number (a closed stdin, a scripted test double) stops the
+        produce a valid answer (a closed stdin, a scripted test double) stops the
         game with an error instead of spinning the engine forever.
 
         Args:
-            answer: Callable asking the player and returning their number.
-            accepted: Predicate deciding whether a number may be used.
-            complaint: Callable explaining, for the rejected number, why not.
+            answer: Callable asking the player and returning their answer.
+            accepted: Predicate deciding whether an answer may be used.
+            complaint: Callable explaining, for a rejected answer, why not.
 
         Returns:
             The first answer accepted by ``accepted``.
@@ -275,13 +305,15 @@ class Game:
             lambda _bushels: _not_enough_grain(state.bushels),
         )
 
-    def _plant_grain(self) -> int:
+    def _plant_grain(self, settings: Agriculture) -> int:
         """Ask for acres to sow, pay for the seed and return the area sown."""
-        acres = self._ask_acres_to_plant()
-        self.state.bushels -= rules.seed_cost(acres)
+        acres = self._ask_acres_to_plant(settings)
+        self.state.bushels -= rules.seed_cost(
+            acres, acres_per_seed=settings.acres_per_seed
+        )
         return acres
 
-    def _ask_acres_to_plant(self) -> int:
+    def _ask_acres_to_plant(self, settings: Agriculture) -> int:
         """Ask for acres to sow, repeating until land, seed and labour allow."""
         state = self.state
         return self._ask_until_accepted(
@@ -291,22 +323,60 @@ class Game:
                 owned=state.acres,
                 bushels=state.bushels,
                 population=state.population,
+                acres_per_seed=settings.acres_per_seed,
+                acres_per_worker=settings.acres_per_worker,
             ),
             lambda acres: _plant_error(acres, state),
         )
 
-    def _harvest_and_rats(self, acres_planted: int) -> None:
+    def _harvest_and_rats(self, acres_planted: int, settings: Agriculture) -> None:
         """Bring in the harvest and let the rats at the grain already stored.
 
         The rats raid what is left in the store after feeding and sowing, but
-        before the new harvest is added, exactly as in the original game.
+        before the new harvest is added, exactly as in the original game. The
+        farming technology of the year raises the harvest and shrinks the rats'
+        share; neither adds a random draw.
         """
         state = self.state
         store_before_harvest = state.bushels
-        state.yield_per_acre = rules.harvest_yield(self.rng)
-        state.rats_ate_this_year = rules.rats_eaten(self.rng, store_before_harvest)
+        state.yield_per_acre = rules.harvest_yield(self.rng, bonus=settings.yield_bonus)
+        state.rats_ate_this_year = rules.rats_eaten(
+            self.rng, store_before_harvest, divisor=settings.rat_divisor
+        )
         state.bushels += rules.harvest(acres_planted, state.yield_per_acre)
         state.bushels -= state.rats_ate_this_year
+
+    def _research(self) -> None:
+        """Let the ruler pay for one farming technology, with the rule set on.
+
+        The question is put only when the agriculture rule set is in play, at
+        least one node is open and the grain left after the harvest covers it, so
+        a ruler who cannot afford anything is never asked a question they cannot
+        answer. The cost leaves the store at once and the node is unlocked for the
+        years that follow; answering ``None`` leaves the grain alone.
+        """
+        state = self.state
+        if not state.agriculture:
+            return
+        choices = tech.offers(state.unlocked, bushels=state.bushels)
+        if not choices:
+            return
+
+        offered = {item.key: item for item in choices}
+        key = self._ask_until_accepted(
+            lambda: self.ui.ask_research(state, choices),
+            lambda key: key is None or key in offered,
+            lambda key: (
+                f"Think again. '{key}' is not one of the technologies on offer; "
+                "answer 0 to research nothing this year."
+            ),
+        )
+        if key is None:
+            return
+        researched = offered[key]
+        state.bushels -= researched.cost
+        state.unlocked = state.unlocked | {researched.key}
+        self.ui.show_research(researched)
 
     def _invite_immigrants(self) -> None:
         """Work out how many newcomers the next year's report will announce."""

@@ -8,13 +8,13 @@ tests and the UI tests use exactly the same doubles.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Sequence
 from io import StringIO
 from typing import TypeVar
 
 from rich.console import Console
 
-from hammurabi import config, rules
+from hammurabi import config, rules, tech
 from hammurabi.models import GameState, Verdict
 
 _Value = TypeVar("_Value")
@@ -77,11 +77,13 @@ class FakeUI:
         sell: Iterable[int] = (0,),
         feed: Iterable[int] = (0,),
         plant: Iterable[int] = (0,),
+        research: Iterable[str | None] = (None,),
     ) -> None:
         self._buy = repeat_last(buy)
         self._sell = repeat_last(sell)
         self._feed = repeat_last(feed)
         self._plant = repeat_last(plant)
+        self._research = repeat_last(research)
         self.calls: list[tuple[object, ...]] = []
         self.errors: list[str] = []
         self.intro_shown = 0
@@ -129,6 +131,22 @@ class FakeUI:
     def ask_acres_to_plant(self, state: GameState) -> int:
         self.calls.append(("ask_plant", state.population, state.bushels))
         return next(self._plant)
+
+    def ask_research(
+        self, state: GameState, choices: Sequence[tech.Tech]
+    ) -> str | None:
+        self.calls.append(
+            (
+                "ask_research",
+                state.year,
+                state.bushels,
+                tuple(item.key for item in choices),
+            )
+        )
+        return next(self._research)
+
+    def show_research(self, researched: tech.Tech) -> None:
+        self.calls.append(("research", researched.key, researched.cost))
 
     def show_error(self, message: str) -> None:
         self.errors.append(message)
@@ -206,6 +224,11 @@ def careful_console_answers(question: str) -> str:
     Returns:
         The answer, as the player would have typed it.
     """
+    if "wish to research" in question:
+        # The scripted player founds no school: 0 is the engine's accepted answer
+        # for "research nothing this year", and a research node key cannot be
+        # read from the question text alone.
+        return "0"
     if "wish to buy" in question or "wish to sell" in question:
         return "0"
     store = int(_STORE.search(question).group(1))

@@ -35,6 +35,21 @@ from tests.support import StubRandom
         ("START_PLAGUE_ROLL", 1),
         ("IMPEACHMENT_STARVATION_RATIO", 0.45),
         ("VERDICT_ASSASSIN_SHARE", 0.8),
+        ("TECH_YIELD_BONUS_PER_NODE", 1),
+        ("TECH_YIELD_BONUS_ALMANAC", 1),
+        ("TECH_MAX_YIELD_BONUS", 6),
+        (
+            "TECH_ACRES_PER_SEED",
+            {"plough": 3, "heavy_plough": 4, "seed_drill": 5},
+        ),
+        (
+            "TECH_ACRES_PER_WORKER",
+            {"draft_teams": 12, "iron_ploughshares": 14, "harvest_crews": 16},
+        ),
+        (
+            "TECH_RAT_DIVISOR",
+            {"granaries": 2, "silos": 3, "vaults": 4, "almanac": 5},
+        ),
     ],
 )
 def test_config_matches_documented_rules(name: str, expected: object) -> None:
@@ -290,4 +305,59 @@ def test_seeded_random_reproduces_the_same_sequence() -> None:
 def test_seeded_random_floats_are_in_the_unit_interval() -> None:
     rng = SeededRandom(seed=99)
     assert all(0.0 <= rng.random() < 1.0 for _ in range(50))
+
+
+# --- The optional farming technology -----------------------------------------
+#
+# The agriculture rule set reaches the rules through keyword arguments that
+# default to the classic values, so a caller that passes nothing keeps playing
+# the 1978 game. Each test below pins one of those seams.
+
+
+def test_harvest_yield_adds_the_technology_bonus() -> None:
+    rng = StubRandom(integers=[3])
+    assert rules.harvest_yield(rng, bonus=config.TECH_YIELD_BONUS_PER_NODE) == (
+        3 + config.TECH_YIELD_BONUS_PER_NODE
+    )
+
+
+def test_harvest_yield_has_no_bonus_by_default() -> None:
+    assert rules.harvest_yield(StubRandom(integers=[5])) == 5
+
+
+def test_rats_eat_a_divisor_less_with_granaries() -> None:
+    granary = StubRandom(integers=[4])
+    divisor = config.TECH_RAT_DIVISOR["granaries"]
+    assert rules.rats_eaten(granary, 1000, divisor=divisor) == 1000 // 4 // divisor
+
+
+def test_rats_eat_the_classic_share_by_default() -> None:
+    assert rules.rats_eaten(StubRandom(integers=[4]), 1000) == 250
+
+
+def test_seed_cost_uses_the_rate_it_is_given() -> None:
+    plough = config.TECH_ACRES_PER_SEED["plough"]
+    assert rules.seed_cost(999, acres_per_seed=plough) == 333
+    assert rules.seed_cost(999) == 499  # the classic two acres per bushel
+
+
+def test_max_plantable_acres_uses_the_rate_it_is_given() -> None:
+    draft = config.TECH_ACRES_PER_WORKER["draft_teams"]
+    assert rules.max_plantable_acres(100, acres_per_worker=draft) == 1199
+    assert rules.max_plantable_acres(100) == 999
+
+
+def test_can_plant_follows_the_technology_it_is_given() -> None:
+    classic = {"owned": 1000, "bushels": 400, "population": 100}
+    plough = config.TECH_ACRES_PER_SEED["plough"]
+    draft = config.TECH_ACRES_PER_WORKER["draft_teams"]
+    assert not rules.can_plant(999, **classic)
+    assert rules.can_plant(999, **classic, acres_per_seed=plough)
+    assert rules.can_plant(
+        1000,
+        owned=1000,
+        bushels=1000,
+        population=100,
+        acres_per_worker=draft,
+    )
 

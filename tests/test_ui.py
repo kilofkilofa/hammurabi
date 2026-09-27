@@ -10,7 +10,7 @@ from io import StringIO
 
 import pytest
 
-from hammurabi import config
+from hammurabi import config, tech
 from hammurabi.game import Game
 from hammurabi.models import GameState, Verdict
 from hammurabi.random_source import SeededRandom
@@ -326,3 +326,139 @@ def test_a_marathon_term_can_be_played_through_the_console_ui() -> None:
     assert text.count("I beg to report to you,") == config.MARATHON_TERM_YEARS
     assert f"In your {config.MARATHON_TERM_YEARS}-year term of office" in text
     assert "So long for now." in text
+
+
+# --- The agriculture rule set ------------------------------------------------
+
+
+def test_the_intro_announces_the_agriculture_rule_set() -> None:
+    """The banner says what the game plays, because the rule set adds a question."""
+    ui, buffer, _ = _ui("0")
+
+    ui.show_intro(GameState(agriculture=True))
+
+    text = render(buffer)
+    assert "This is the agriculture rule set" in text
+    assert f"may also pay for one of the {len(tech.TECH_TREE)}" in text
+    assert "technologies out of the grain in store" in text
+
+
+def test_the_classic_intro_announces_no_rule_set() -> None:
+    """The vintage banner is unchanged, which the classic transcripts depend on."""
+    ui, buffer, _ = _ui("0")
+
+    ui.show_intro(GameState())
+
+    assert "agriculture rule set" not in render(buffer)
+
+
+def test_the_research_question_lists_what_is_on_offer() -> None:
+    ui, buffer, questions = _ui("1")
+    stores = config.TECH_COSTS
+    choices = tech.offers(frozenset(), bushels=stores["fallow"])
+    state = GameState(year=2, bushels=stores["fallow"])
+
+    assert ui.ask_research(state, choices) == "plough"
+
+    text = render(buffer)
+    assert "Ox-drawn plough" in text
+    assert "Fallow fields" in text
+    assert f"{stores['plough']} bushels" in text
+    assert "Which technology do you wish to research?" in text
+    # The hint is part of the question handed to the reader, like the four
+    # classic questions; see ``test_every_question_repeats_the_figures...``.
+    assert f"you have {stores['fallow']} bushels" in questions[0]
+    assert len(questions) == 1
+
+
+def test_the_research_question_reports_how_far_the_tree_has_come() -> None:
+    """The programme lasts a lifetime, so the ruler is told where they stand."""
+    ui, buffer, _ = _ui("1")
+    choices = tech.offers(frozenset({"fallow"}), bushels=config.TECH_COSTS["silos"])
+
+    ui.ask_research(GameState(unlocked=frozenset({"fallow"})), choices)
+
+    assert (
+        f"Your farmers have mastered 1 of {len(tech.TECH_TREE)} technologies."
+        in render(buffer)
+    )
+
+
+def test_the_second_choice_is_the_second_node() -> None:
+    ui, _, _ = _ui("2")
+    stores = config.TECH_COSTS
+    choices = tech.offers(frozenset(), bushels=stores["fallow"])
+
+    assert ui.ask_research(GameState(bushels=stores["fallow"]), choices) == "fallow"
+
+
+def test_answering_zero_researches_nothing() -> None:
+    ui, _, questions = _ui("0")
+    plough = config.TECH_COSTS["plough"]
+    choices = tech.offers(frozenset(), bushels=plough)
+
+    assert ui.ask_research(GameState(bushels=plough), choices) is None
+    assert "answer 0 to research nothing" in questions[0]
+
+
+def test_a_number_outside_the_list_is_handed_back_to_the_engine() -> None:
+    """The UI draws the table but does not rule on it: the engine re-asks."""
+    ui, _, _ = _ui("7")
+    plough = config.TECH_COSTS["plough"]
+    choices = tech.offers(frozenset(), bushels=plough)
+
+    assert ui.ask_research(GameState(bushels=plough), choices) == "7"
+
+
+def test_the_technology_researched_is_reported_with_its_effect() -> None:
+    ui, buffer, _ = _ui("0")
+
+    ui.show_research(tech.node("granaries"))
+
+    text = render(buffer)
+    assert "Your scholars start work on the Granaries" in text
+    assert tech.node("granaries").effect in text
+
+
+def test_the_summary_lists_the_researched_technologies_in_tree_order() -> None:
+    ui, buffer, _ = _ui("0")
+    state = GameState(
+        population=50,
+        acres=500,
+        unlocked=frozenset({"granaries", "plough"}),
+    )
+
+    ui.show_summary(state, Verdict.TYRANT)
+
+    assert "Your farmers mastered: Ox-drawn plough, Granaries." in render(buffer)
+
+
+def test_the_classic_summary_lists_no_technology() -> None:
+    ui, buffer, _ = _ui("0")
+
+    ui.show_summary(GameState(), Verdict.FANTASTIC)
+
+    assert "farmers mastered" not in render(buffer)
+
+
+def test_a_whole_agriculture_game_can_be_played_through_the_console_ui() -> None:
+    """The scripted console player takes the first technology it is offered."""
+
+    def read(question: str) -> str:
+        if "wish to research" in question:
+            return "1"
+        return careful_console_answers(question)
+
+    console, buffer = plain_console()
+    game = Game(
+        SeededRandom(seed=1),
+        ConsoleUI(console=console, read=read),
+        GameState(agriculture=True),
+    )
+
+    game.play()
+
+    text = render(buffer)
+    assert game.state.unlocked, "the ruler never researched anything"
+    assert "Your scholars start work on the Ox-drawn plough" in text
+    assert "This is the agriculture rule set" in text

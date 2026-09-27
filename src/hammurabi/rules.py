@@ -21,9 +21,19 @@ def land_price(rng: RandomSource) -> int:
     return rng.randint(config.LAND_PRICE_MIN, config.LAND_PRICE_MAX)
 
 
-def harvest_yield(rng: RandomSource) -> int:
-    """Return this year's harvest in bushels per planted acre (1-5)."""
-    return rng.randint(config.YIELD_MIN, config.YIELD_MAX)
+def harvest_yield(rng: RandomSource, *, bonus: int = 0) -> int:
+    """Return this year's harvest in bushels per planted acre (1-5).
+
+    Args:
+        rng: Source of the roll.
+        bonus: Bushels added to the roll, which is how the farming technologies
+            of the agriculture rule set raise a harvest. It defaults to the
+            classic game, where nothing is added.
+
+    Returns:
+        The harvest in bushels per planted acre.
+    """
+    return rng.randint(config.YIELD_MIN, config.YIELD_MAX) + bonus
 
 
 def plague_roll(rng: RandomSource) -> int:
@@ -50,16 +60,19 @@ def plague_survivors(population: int) -> int:
     return population // 2
 
 
-def rats_eaten(rng: RandomSource, store: int) -> int:
+def rats_eaten(rng: RandomSource, store: int, *, divisor: int = 1) -> int:
     """Return the bushels eaten by rats this year.
 
     A fresh roll of 1-5 is made. On an odd roll nothing is eaten; on an even
-    roll the rats eat ``store / roll``, i.e. a half or a quarter of the grain
-    left in the store after feeding and seeding (but before the harvest).
+    roll the rats eat ``store / roll / divisor``, i.e. a half or a quarter of
+    the grain left in the store after feeding and seeding (but before the
+    harvest), and less still once granaries or the almanac are unlocked.
 
     Args:
         rng: Source of the roll.
         store: Bushels currently in the store.
+        divisor: Further divisor for the rats' share; ``1`` in the classic game,
+            ``2`` with granaries and ``4`` with the Nippur almanac.
 
     Returns:
         The bushels lost to rats (never negative).
@@ -67,7 +80,7 @@ def rats_eaten(rng: RandomSource, store: int) -> int:
     roll = rng.randint(config.RAT_ROLL_MIN, config.RAT_ROLL_MAX)
     if roll % 2 != 0:
         return 0
-    return store // roll
+    return store // roll // divisor
 
 
 def immigrants(rng: RandomSource, *, acres: int, bushels: int, population: int) -> int:
@@ -130,14 +143,38 @@ def counts_towards_starvation(population: int, fed: int) -> bool:
     return fed <= population
 
 
-def seed_cost(acres_planted: int) -> int:
-    """Return the bushels of seed needed for ``acres_planted`` (1 per 2 acres)."""
-    return acres_planted // config.ACRES_PER_SEED_BUSHEL
+def seed_cost(
+    acres_planted: int, *, acres_per_seed: int = config.ACRES_PER_SEED_BUSHEL
+) -> int:
+    """Return the bushels of seed needed for ``acres_planted``.
+
+    The classic rule sows two acres per bushel; the ox-drawn plough sows three,
+    which is why the rate is an argument rather than a constant read here.
+
+    Args:
+        acres_planted: Acres to sow.
+        acres_per_seed: Acres one bushel of seed sows.
+
+    Returns:
+        The bushels of seed, rounded down exactly as in the listing.
+    """
+    return acres_planted // acres_per_seed
 
 
-def max_plantable_acres(population: int) -> int:
-    """Return the most acres the population can tend (``10 * P - 1``)."""
-    return max(0, config.ACRES_PER_WORKER * population - 1)
+def max_plantable_acres(
+    population: int, *, acres_per_worker: int = config.ACRES_PER_WORKER
+) -> int:
+    """Return the most acres the population can tend (``rate * P - 1``).
+
+    Args:
+        population: People available to work the fields.
+        acres_per_worker: Acres one person can tend; the classic ten, twelve
+            once draft teams are unlocked.
+
+    Returns:
+        The labour limit, never negative.
+    """
+    return max(0, acres_per_worker * population - 1)
 
 
 def harvest(acres_planted: int, yield_per_acre: int) -> int:
@@ -168,12 +205,36 @@ def can_feed_people(bushels_fed: int, bushels: int) -> bool:
     return 0 <= bushels_fed <= bushels
 
 
-def can_plant(acres: int, *, owned: int, bushels: int, population: int) -> bool:
-    """Return whether ``acres`` may be planted given land, seed and labour."""
+def can_plant(
+    acres: int,
+    *,
+    owned: int,
+    bushels: int,
+    population: int,
+    acres_per_seed: int = config.ACRES_PER_SEED_BUSHEL,
+    acres_per_worker: int = config.ACRES_PER_WORKER,
+) -> bool:
+    """Return whether ``acres`` may be planted given land, seed and labour.
+
+    The seed and labour limits follow the farming technologies in force: the
+    classic game passes nothing and gets the vintage rates, while the
+    agriculture rule set passes what its tech tree has unlocked.
+
+    Args:
+        acres: Acres the player wants to sow.
+        owned: Acres the city owns.
+        bushels: Bushels in the store.
+        population: People available to work the fields.
+        acres_per_seed: Acres one bushel of seed sows.
+        acres_per_worker: Acres one person can tend.
+
+    Returns:
+        ``True`` when the land, the seed and the labour all allow ``acres``.
+    """
     return (
         0 <= acres <= owned
-        and seed_cost(acres) <= bushels
-        and acres <= max_plantable_acres(population)
+        and seed_cost(acres, acres_per_seed=acres_per_seed) <= bushels
+        and acres <= max_plantable_acres(population, acres_per_worker=acres_per_worker)
     )
 
 

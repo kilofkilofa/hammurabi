@@ -7,11 +7,13 @@ randomness.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import asdict
 from itertools import cycle
 
 import pytest
 
-from hammurabi import config, rules
+from hammurabi import config, rules, tech
 from hammurabi.game import Game
 from hammurabi.models import GameState, Verdict
 from hammurabi.random_source import SeededRandom
@@ -627,3 +629,231 @@ def test_a_marathon_state_is_closed_at_its_hundredth_year() -> None:
     assert ("summary", config.MARATHON_TERM_YEARS, verdict) in ui.calls
     assert game.state.population == 57
     assert game.state.year == config.MARATHON_TERM_YEARS
+
+
+# --- The agriculture rule set ------------------------------------------------
+
+
+class _FarmerUI(CarefulUI):
+    """A careful player who buys the cheapest technology on offer every year."""
+
+    def ask_research(
+        self, state: GameState, choices: Sequence[tech.Tech]
+    ) -> str | None:
+        self.calls.append(("ask_research", state.year, tuple(i.key for i in choices)))
+        return min(choices, key=lambda item: item.cost).key
+
+
+def test_the_classic_rule_set_never_asks_for_research() -> None:
+    """Without the rule set the vintage term has one question less per year."""
+    ui = CarefulUI()
+    game = Game(_endless_rng(), ui)
+
+    game.play()
+
+    assert "ask_research" not in ui.names()
+    assert game.state.unlocked == frozenset()
+
+
+def _figures(state: GameState) -> dict[str, object]:
+    """Return a state without the rule-set flag, for an A/B comparison."""
+    return {
+        key: value for key, value in asdict(state).items() if key != "agriculture"
+    }
+
+
+def test_the_rule_set_adds_no_random_draw() -> None:
+    """A term played with the rule set on and research declined replays the classic.
+
+    This is what makes the two rule sets measurable against each other: research
+    changes the figures the rules are handed, never the random events themselves.
+    """
+    classic = Game(SeededRandom(seed=11), CarefulUI())
+    classic.play()
+
+    ui = CarefulUI()
+    agriculture = Game(
+        SeededRandom(seed=11), ui, state=GameState(agriculture=True)
+    )
+    agriculture.play()
+
+    assert "ask_research" in ui.names(), "the research question was never put"
+    assert _figures(agriculture.state) == _figures(classic.state)
+
+
+def test_research_is_paid_out_of_the_grain_in_store() -> None:
+    """The cost leaves the store and the node is unlocked for the years to come."""
+    ui = FakeUI(plant=(0,), research=["plough"])
+    game = Game(_year_rng(), ui, state=GameState(agriculture=True, bushels=1000))
+
+    game.play_year()
+
+    assert game.state.unlocked == frozenset({"plough"})
+    assert game.state.bushels == 1000 - config.TECH_COSTS["plough"]
+    assert ("research", "plough", config.TECH_COSTS["plough"]) in ui.calls
+
+
+def test_declining_research_keeps_the_grain_and_unlocks_nothing() -> None:
+    """Answering ``None`` costs nothing; only what the store can pay for is offered."""
+    ui = FakeUI(plant=(0,))
+    game = Game(_year_rng(), ui, state=GameState(agriculture=True, bushels=500))
+
+    game.play_year()
+
+    assert ("ask_research", 1, 500, ("plough",)) in ui.calls
+    assert game.state.unlocked == frozenset()
+    assert game.state.bushels == 500
+    assert "research" not in ui.names()
+
+
+def test_a_ruler_without_grain_is_not_asked_to_research() -> None:
+    """A question with no affordable answer is never put."""
+    ui = FakeUI(plant=(0,))
+    game = Game(_year_rng(), ui, state=GameState(agriculture=True, bushels=100))
+
+    game.play_year()
+
+    assert "ask_research" not in ui.names()
+    assert game.state.unlocked == frozenset()
+
+
+def test_only_one_research_starts_in_a_year() -> None:
+    """The tree is climbed a node at a time, however rich the store is."""
+    ui = FakeUI(plant=(0,), research=["plough", "fallow"])
+    game = Game(_year_rng(), ui, state=GameState(agriculture=True, bushels=5000))
+
+    game.play_year()
+
+    assert game.state.unlocked == frozenset({"plough"})
+    assert [call for call in ui.calls if call[0] == "ask_research"] == [
+        ("ask_research", 1, 5000, ("plough", "fallow", "granaries"))
+    ]
+
+
+def test_an_unknown_technology_is_rejected_and_asked_again() -> None:
+    """A key the tree does not know is explained and the question is put again."""
+    ui = FakeUI(plant=(0,), research=["taxes", "plough"])
+    game = Game(_year_rng(), ui, state=GameState(agriculture=True, bushels=600))
+
+    game.play_year()
+
+    assert ui.errors == [
+        "Think again. 'taxes' is not one of the technologies on offer; "
+        "answer 0 to research nothing this year."
+    ]
+    assert game.state.unlocked == frozenset({"plough"})
+
+
+def test_a_ui_that_only_offers_an_unknown_technology_is_given_up_on() -> None:
+    """The give-up bound covers the research question like the other four."""
+    ui = FakeUI(plant=(0,), research=["taxes"])
+    game = Game(_year_rng(), ui, state=GameState(agriculture=True, bushels=600))
+
+    with pytest.raises(RuntimeError):
+        game.play_year()
+
+    assert len(ui.errors) == config.MAX_ANSWER_ATTEMPTS
+
+
+def test_a_farmer_climbs_the_tree_one_node_a_year() -> None:
+    """Each year buys the cheapest node on offer, so the tree only ever grows."""
+    ui = _FarmerUI()
+    game = Game(_endless_rng(), ui, state=GameState(agriculture=True))
+
+    game.play_year()
+    first = game.state.unlocked
+    game.play_year()
+
+    assert len(first) == 1
+    assert first < game.state.unlocked, "the second year unlocked nothing new"
+
+
+def test_a_researched_technology_applies_from_the_year_it_is_read() -> None:
+    """Fallow fields add their bushels to the harvest of the year that follows."""
+    ui = FakeUI(feed=(config.START_BUSHELS,), plant=(0,))
+    state = GameState(agriculture=True, unlocked=frozenset({"fallow"}))
+    game = Game(_year_rng(yield_per_acre=3), ui, state=state)
+
+    game.play_year()
+
+    assert game.state.yield_per_acre == 3 + config.TECH_YIELD_BONUS_PER_NODE
+
+
+def test_the_classic_harvest_is_the_roll_alone() -> None:
+    """Without the rule set nothing is added to the 1-5 roll."""
+    ui = FakeUI(feed=(config.START_BUSHELS,), plant=(0,))
+    game = Game(_year_rng(yield_per_acre=3), ui, state=GameState())
+
+    game.play_year()
+
+    assert game.state.yield_per_acre == 3
+
+
+def test_granaries_shrink_the_rats_share_of_the_store() -> None:
+    """The technology divides what an even roll would have left the rats."""
+    store = 1000
+    ui = FakeUI(feed=(0,), plant=(0,))
+    state = GameState(
+        agriculture=True, unlocked=frozenset({"granaries"}), bushels=store
+    )
+    game = Game(_year_rng(rats=4), ui, state=state)
+
+    game.play_year()
+
+    assert game.state.rats_ate_this_year == (
+        store // 4 // config.TECH_RAT_DIVISOR["granaries"]
+    )
+
+
+def test_the_plough_sows_more_acres_for_the_same_seed() -> None:
+    """A sowing the classic rate could not pay for is accepted with the plough."""
+    acres = 999
+    ui = FakeUI(plant=(acres,), feed=(0,))
+    state = GameState(agriculture=True, unlocked=frozenset({"plough"}), bushels=400)
+    game = Game(_year_rng(rats=1), ui, state=state)
+
+    game.play_year()
+
+    assert ui.errors == []
+    assert game.state.bushels == (
+        400
+        - acres // config.TECH_ACRES_PER_SEED["plough"]
+        + rules.harvest(acres, 3)
+    )
+
+
+def test_the_classic_rate_refuses_the_sowing_the_plough_allows() -> None:
+    """The same answer breaks the classic seed rule, which is the whole point."""
+    ui = FakeUI(plant=(999,), feed=(0,))
+    game = Game(_year_rng(rats=1), ui, state=GameState(bushels=400))
+
+    with pytest.raises(RuntimeError):
+        game.play_year()
+
+    assert ui.errors[0] == "Think again. You have only 400 bushels of grain."
+
+
+def test_draft_teams_let_one_person_tend_more_acres() -> None:
+    """The labour limit follows the tree: twelve acres a person instead of ten."""
+    ui = FakeUI(plant=(1000,), feed=(0,))
+    state = GameState(
+        agriculture=True, unlocked=frozenset({"draft_teams"}), bushels=1000
+    )
+    game = Game(_year_rng(rats=1), ui, state=state)
+
+    game.play_year()
+
+    assert ui.errors == []
+
+
+def test_the_classic_labour_limit_refuses_the_same_sowing() -> None:
+    """A hundred people tend at most 999 acres, so the thousandth is refused."""
+    ui = FakeUI(plant=(1000,), feed=(0,))
+    game = Game(_year_rng(rats=1), ui, state=GameState(bushels=1000))
+
+    with pytest.raises(RuntimeError):
+        game.play_year()
+
+    assert ui.errors[0] == (
+        "But you have only 100 people to tend the fields. Now then,"
+    )

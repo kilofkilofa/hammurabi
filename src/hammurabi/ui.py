@@ -14,13 +14,13 @@ follows the listing closely, with its obvious typos corrected ("Charlemagne",
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from hammurabi import config
+from hammurabi import config, tech
 from hammurabi.models import GameState, Verdict
 
 #: Drawn while the player types; the question itself is printed above it.
@@ -92,16 +92,48 @@ def _verdict_lines(state: GameState, verdict: Verdict) -> list[str]:
     ]
 
 
+def _researched_line(state: GameState) -> str | None:
+    """Return the line naming the researched technologies, when there are any.
+
+    The classic game researches nothing, so its closing report gains no line; the
+    agriculture rule set lists what the ruler's farmers mastered, in tree order.
+    """
+    if not state.unlocked:
+        return None
+    names = [item.name for item in tech.TECH_TREE if item.key in state.unlocked]
+    return f"Your farmers mastered: {', '.join(names)}."
+
+
+def _ruleset_note(state: GameState) -> str:
+    """Return the sentence announcing the rule set, for the intro panel.
+
+    The classic game needs no note, because it asks the four vintage questions;
+    the agriculture rule set adds a fifth and says so before the first year. The
+    size of the tree is read from :mod:`hammurabi.tech`, so the banner cannot fall
+    behind a deeper tree.
+    """
+    if not state.agriculture:
+        return ""
+    return (
+        "\n\nThis is the agriculture rule set: each year you may also pay for "
+        f"one of the {len(tech.TECH_TREE)} farming technologies out of the grain "
+        "in store. The later ones cost what many harvests leave over, so the "
+        "whole programme is the work of a lifetime."
+    )
+
+
 def _term_statistics(state: GameState) -> str:
     """Return the term statistics that open the closing report (860-875)."""
     started = config.START_ACRES / config.START_POPULATION
-    return (
+    statistics = (
         f"In your {state.term_years}-year term of office, "
         f"{state.starved_percent_avg:.1f} percent of the population starved per "
         f"year on the average, i.e. a total of {state.total_starved} people "
         f"died!!\nYou started with {started:.1f} acres per person and ended with "
         f"{state.acres_per_person:.1f} acres per person."
     )
+    researched = _researched_line(state)
+    return statistics if researched is None else f"{statistics}\n{researched}"
 
 
 class ConsoleUI:
@@ -136,7 +168,8 @@ class ConsoleUI:
             Panel(
                 f"[bold]{TITLE}[/bold]\n[dim]{SUBTITLE}[/dim]\n\n"
                 "Try your hand at governing ancient Sumeria successfully for a "
-                f"{state.term_years}-year term of office.\n\n[dim]{CREDIT}[/dim]",
+                f"{state.term_years}-year term of office.{_ruleset_note(state)}"
+                f"\n\n[dim]{CREDIT}[/dim]",
                 border_style="green",
                 title="Hammurabi",
                 title_align="left",
@@ -182,6 +215,13 @@ class ConsoleUI:
     def show_land_price(self, price: int) -> None:
         """Report the price fixed for this year's land trade."""
         self.console.print(f"Land is trading at {price} bushels per acre.")
+
+    def show_research(self, researched: tech.Tech) -> None:
+        """Report the farming technology the ruler has just paid for."""
+        self.console.print(
+            f"Your scholars start work on the {researched.name} "
+            f"({researched.effect}); it shows in the years to come."
+        )
 
     def show_error(self, message: str) -> None:
         """Explain why the engine rejected the last answer."""
@@ -238,6 +278,47 @@ class ConsoleUI:
             f"[you own {state.acres} acres, you have {state.bushels} bushels, "
             f"{state.population} people live in the city]"
         )
+
+    def ask_research(
+        self, state: GameState, choices: Sequence[tech.Tech]
+    ) -> str | None:
+        """Ask which farming technology to research this year.
+
+        The nodes on offer are drawn as a numbered table, because their names
+        alone would hide what they cost and what they do. Answering ``0`` starts
+        no research and leaves the grain in store. A number outside the table is
+        handed back as text, so the engine rejects it and asks again, exactly as it
+        does for a sowing that breaks a rule.
+
+        Args:
+            state: State the question is asked in; only its grain is quoted.
+            choices: Nodes the store can pay for, in tree order.
+
+        Returns:
+            The key of the chosen node, ``None`` for no research this year, or the
+            typed digits when they name no node on the list.
+        """
+        table = Table(show_header=True, box=None, padding=(0, 2))
+        table.add_column("#", justify="right", style="bold")
+        table.add_column("Technology")
+        table.add_column("Cost", justify="right")
+        table.add_column("Effect")
+        for number, item in enumerate(choices, start=1):
+            table.add_row(str(number), item.name, f"{item.cost} bushels", item.effect)
+        self.console.print(
+            f"Your farmers have mastered {len(state.unlocked)} of "
+            f"{len(tech.TECH_TREE)} technologies."
+        )
+        self.console.print(table)
+        answer = self._ask_int(
+            "Which technology do you wish to research? "
+            f"[you have {state.bushels} bushels, answer 0 to research nothing]"
+        )
+        if answer == 0:
+            return None
+        if 1 <= answer <= len(choices):
+            return choices[answer - 1].key
+        return str(answer)
 
     # --- Internals -----------------------------------------------------------
 

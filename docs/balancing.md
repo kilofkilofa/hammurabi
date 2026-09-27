@@ -11,15 +11,20 @@ Five hundred games per policy (seeds 0–499), played to their end by the engine
 alone, with no terminal involved:
 
 ```python
-from tests.policies import CarefulPolicy, play_game
+from tests.policies import CarefulPolicy, FarmerPolicy, play_game
 
 for seed in range(500):
     game, policy = play_game(seed, CarefulPolicy)
     ...  # read game.state, policy.answers and policy.calls
+
+for seed in range(500):  # the agriculture rule set, research and all
+    game, policy = play_game(seed, FarmerPolicy, agriculture=True)
+    ...
 ```
 
-Four policies keep the batch honest: one careful baseline ruler and three who
-each change a single decision, so every branch of the engine is exercised.
+Four policies keep the classic batch honest: one careful baseline ruler and three
+who each change a single decision, so every branch of the engine is exercised. A
+fifth, `FarmerPolicy`, is the one that plays the agriculture rule set.
 
 | Policy | What it does |
 | --- | --- |
@@ -27,13 +32,20 @@ each change a single decision, so every branch of the engine is exercised.
 | `TraderPolicy` | the same, but spends whatever is left after food and seed on land |
 | `SellerPolicy` | the same, but sells 50 acres whenever an acre fetches 22 bushels or more, keeping at least one acre |
 | `StarverPolicy` | feeds nobody at all, which ends the reign in the first year |
+| `FarmerPolicy` | the careful ruler of the agriculture rule set: sows at the rate the unlocked technology allows, and buys the most valuable technology the year can afford out of the grain left after the food and the seed, never out of the grain the city needs |
 
 The rules the batches are measured against are the ones in `plan.md` §4: 20
 bushels feed one person for a year, 1 bushel of seed sows 2 acres, one person
 tends 10 acres, land costs 17-26 bushels per acre, each planted acre yields 1-5
 bushels, the rats raid on 40% of the years, the plague roll strikes on 20% of the
 draws, starving more than 45% of the city in one year ends the reign, and the
-term lasts 10 years.
+term lasts 10 years. `--agriculture` adds the farming technologies of the same
+section: one node a year, paid from the grain in store. The tree holds fifteen
+nodes costing 400 to 83,900 bushels each, 263,500 bushels together; the fields
+branch adds a bushel per planted acre at every rung, the seed branch lets a bushel
+of seed sow 3, 4 and 5 acres, the store branch divides the rats' share by 2, 3 and
+4, the hands branch lets one person tend 12, 14 and 16 acres, and the capstone adds
+another bushel and leaves the rats a fifth.
 
 ## How long a reign lasts
 
@@ -50,6 +62,8 @@ end and still scored as a national fink.
 | trader | 500 | 9 | 491 | 8 | 1 | 0 | 491 |
 | seller | 500 | 363 | 137 | 139 | 50 | 98 | 213 |
 | starver | 500 | 0 | 500 | 0 | 0 | 0 | 500 |
+| careful (agriculture) | 500 | 175 | 325 | 123 | 16 | 31 | 330 |
+| farmer (agriculture) | 500 | 277 | 223 | 174 | 24 | 52 | 250 |
 
 | Policy | Mean years played | Mean year of a mid-term impeachment |
 | --- | --- | --- |
@@ -57,6 +71,8 @@ end and still scored as a national fink.
 | trader | 4.32 | 4.22 |
 | seller | 8.78 | 5.54 |
 | starver | 1.00 | 1.00 |
+| careful (agriculture) | 6.71 | 4.93 |
+| farmer (agriculture) | 5.29 | 4.06 |
 
 ## What the random events actually do
 
@@ -166,14 +182,106 @@ usually meets its 45% year long before the hundredth.
   documented way to ask for the same rules over a century.
 
 
+## The agriculture rule set
+
+`--agriculture` puts the fifteen farming technologies of `plan.md` §4 in play: one
+node a year, paid out of the grain in store. Research never costs a random draw, so
+a term played with the rule set on and every offer declined is the classic term bit
+for bit — and the batches below show exactly that, then what the tree is worth to a
+ruler who pays for it.
+
+The farmer of these measurements buys the most valuable node the year can afford, a
+bushel per acre first, and pays for nothing out of the grain the city needs: only
+the surplus left after the food and the seed of the year may be spent on research.
+That discipline is the difference between a reign and a ruin — a ruler who empties
+the store for a cheaper plough starves — and it is why the farmer completes more
+terms than the careful ruler who researches nothing at all.
+
+| Batch | Games | Completed | Impeached mid-term | Fantastic | Mediocre | Tyrant | National fink |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| careful (agriculture) | 500 | 175 | 325 | 123 | 16 | 31 | 330 |
+| farmer (agriculture) | 500 | 277 | 223 | 174 | 24 | 52 | 250 |
+| farmer (agriculture, marathon) | 500 | 249 | 251 | 46 | 12 | 31 | 411 |
+
+| Batch | Mean years played | Mean year of a mid-term impeachment |
+| --- | --- | --- |
+| careful (agriculture) | 6.71 | 4.93 |
+| farmer (agriculture) | 7.29 | 3.93 |
+| farmer (agriculture, marathon) | 53.15 | 6.67 |
+
+### The arc of a whole tree
+
+The table below reads the same 500-game marathon batch node by node: how many of the
+games ever paid for a rung, and when. "Median year" is where half the games that
+bought it had bought it.
+
+| Node | Cost (bushels) | Games that bought it | Median year | Mean year |
+| --- | --- | --- | --- | --- |
+| Ox-drawn plough | 400 | 300 | 5 | 4.5 |
+| Fallow fields | 600 | 333 | 1 | 1.1 |
+| Granaries | 850 | 307 | 3 | 3.5 |
+| Manured fields | 1250 | 308 | 2 | 2.3 |
+| Draft teams | 1850 | 290 | 6 | 6.4 |
+| Heavy plough | 2700 | 279 | 8 | 8.0 |
+| Crop rotation | 3950 | 291 | 5 | 5.1 |
+| Sealed silos | 5800 | 282 | 8 | 8.2 |
+| Iron ploughshares | 8500 | 275 | 12 | 11.8 |
+| Seed drill | 12450 | 269 | 16 | 15.9 |
+| Flood farming | 18200 | 264 | 22 | 22.2 |
+| Temple vaults | 26700 | 259 | 29 | 30.0 |
+| Harvest crews | 39100 | 255 | 41 | 41.7 |
+| Selected seed corn | 57250 | 252 | 60 | 62.1 |
+| Nippur almanac | 83900 | 190 | 86 | 85.1 |
+
+Of the 500 farmer games, 190 bought every rung; the median completion year is 86, the
+mean 85.1 and the range 68-100. 162 games bought nothing at all, 62 stopped at
+fourteen rungs, and 2,960 of the 4,154 rungs ever bought fell in the first twenty
+years of the batches.
+
+- **The flag alone changes nothing.** The careful ruler who declines every offer
+  plays the classic term exactly — the same 175 completed games, the same verdict
+  counts, the same mean year of an impeachment — because research changes the
+  figures the rules are handed, never the events the seed produces.
+- **The cheap rungs pay for themselves quickly.** The farmer completes 277 terms
+  where the careful ruler completes 175: fallow fields, granaries, manured fields
+  and crop rotation cost 6,650 bushels between them and give three bushels to every
+  planted acre while halving what the rats take, and the opening decade is long
+  enough to earn all of that back. Research pays best when it is early and cheap.
+- **The whole tree is the work of a lifetime.** The last five rungs cost 225,150 of
+  the 263,500 bushels and are paid for between the thirtieth and the eighty-sixth
+  year of the plan: it is the ladder, not the shape of the tree, that stretches the
+  programme over a reign, and 190 of the 500 marathons finish it.
+- **The pace falls off on purpose.** 2,960 rungs are bought in the first twenty
+  years of the batches, 580 in the next twenty and then 293, 168 and 153: the cheap
+  end of the ladder is climbed by everyone who survives, the costly end only by the
+  rich. A decade buys the bottom four rungs and stops there.
+- **A century is where it pays.** In the marathon the same farmer completes 249
+  terms, against the single careful game of 500 that survives the same century: a
+  raised harvest and granaries the rats cannot rob are what a growing city needs
+  once the fixed 1000 acres stop feeding it.
+- **The tree does not buy land.** 162 games never afford a rung and 62 die at
+  fourteen nodes, and of the 249 games that reach the end of the century 160 are
+  still scored a national fink, because the verdict measures acres per person and a
+  century of good harvests doubles the population while the original acres stand
+  still. The tree is what pays for the acres a ruler must buy to keep the verdict,
+  not a substitute for buying them.
+
 ## How these notes stay honest
 
-- `tests/test_simulation.py` replays the careful batch and asserts the counts in
-  the first table, and replays the marathon batch for the century row, so a
-  change to a rule or to the engine fails the suite until this file is refreshed.
+- `tests/test_simulation.py` replays every batch quoted above —
+  `test_the_balancing_notes_describe_the_batch_they_quote` — and asserts the
+  counts of each table row, so a change to a rule or to the engine fails the
+  suite until this file is refreshed.
+- The arc of the tree is replayed as well:
+  `test_the_plan_of_the_tree_takes_a_lifetime` plays the same 500 marathons,
+  checks how many games buy every rung, the median completion year and the mean
+  year of each node against the table above, so the claim that the whole
+  programme takes a lifetime cannot quietly go stale.
 - `tests/test_docs.py` checks every rule figure quoted above against the constant
-  it documents, so a changed constant cannot leave a stale number behind here or
-  in `plan.md` and `README.md`.
-- To re-measure everything: replay the batch as shown at the top of this file,
+  it documents, and every row of the `plan.md` §4 tree table against the data in
+  `tech.py`, so a changed constant cannot leave a stale number behind here or in
+  `plan.md` and `README.md`.
+- To re-measure everything: replay the batches as shown at the top of this file,
   one policy at a time, and replace the tables above. A marathon batch is the
-  same loop with `term_years=config.MARATHON_TERM_YEARS`.
+  same loop with `term_years=config.MARATHON_TERM_YEARS`, and an agriculture
+  batch adds `agriculture=True`.

@@ -56,6 +56,14 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--agriculture",
+        action="store_true",
+        help=(
+            "play the optional agriculture rule set: research farming "
+            "technologies out of the grain in store"
+        ),
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=f"%(prog)s {__version__}",
@@ -113,7 +121,7 @@ def main(
     game = Game(
         SeededRandom(args.seed),
         ConsoleUI(console=console, read=read),
-        GameState(term_years=args.years),
+        GameState(term_years=args.years, agriculture=args.agriculture),
     )
 
     try:

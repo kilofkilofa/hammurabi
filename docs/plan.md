@@ -83,18 +83,24 @@ term from 1 to 1000 years; the classic ten is the default and 100 the marathon.
 5. **Feed the people** — each person needs 20 bushels. Unfed people starve.
 6. **Plant grain** — 1 bushel of seed sows 2 acres and 1 person can tend 10
    acres, so at most `10 * population - 1` acres. Planting 0 acres is allowed.
-7. **Harvest** — each planted acre yields 1–5 bushels.
+7. **Harvest** — each planted acre yields 1–5 bushels, plus the bushels the
+   agriculture rule set's husbandry technologies add when it is in play.
 8. **Rats** — 40% chance: rats eat `store / 2` or `store / 4` bushels, where
-   `store` is the grain left after feeding and seeding (before harvest).
-9. **Immigration** — the number of new citizens is worked out from land, grain
-   and population. They are announced in the next year's report, which is when
-   they join the city.
-10. **Starvation check** — starving more than 45% of the population in a single
+   `store` is the grain left after feeding and seeding (before harvest). The
+   granaries and the Nippur almanac divide that share further.
+9. **Research** — *(agriculture rule set only)* the ruler may pay for one node of
+   the farming tech tree below out of the grain in store. Asked only when the
+   store can afford at least one node; a node takes effect in the years that
+   follow, because the farming technology is read at the start of a year.
+10. **Immigration** — the number of new citizens is worked out from land, grain
+    and population. They are announced in the next year's report, which is when
+    they join the city.
+11. **Starvation check** — starving more than 45% of the population in a single
     year means immediate impeachment and the end of the game. A year in which
     the ruler fed more grain than the people needed (`P < C`, listing line 550)
     adds nothing to the running average, to the total of people starved or to
     the population, and does not even count as a year without starvation.
-11. **Scoring** — the listing opens one further (undrawn) report before it judges
+12. **Scoring** — the listing opens one further (undrawn) report before it judges
     the ruler, so that report's immigration joins the city and the plague roll
     made at the end of the tenth year is resolved before the verdict is derived
     from the starvation average and the acres per person.
@@ -102,6 +108,79 @@ term from 1 to 1000 years; the classic ten is the default and 100 the marathon.
 An answer that breaks a rule is rejected and asked for again; after 100 rejected
 answers in a row the engine stops with an error instead of looping forever
 (`config.MAX_ANSWER_ATTEMPTS`).
+
+### Agriculture rule set (`--agriculture`)
+
+The rules above are what `hammurabi` plays by default, in the classic decade and
+in the marathon alike. `hammurabi --agriculture` adds an optional farming rule set
+on top of them: the farming technologies of Sumeria. Once a year, after the harvest
+and before the newcomers are counted, the ruler may pay for **one** node of the tree
+out of the grain in store. The node takes effect in the years that follow, costs
+no random draw of its own, and changes nothing else about the game.
+
+The tree holds 15 nodes; all of them together cost 263,500 bushels. They stand in
+four branches — the fields, the seed, the store and the hands — and meet in the
+capstone. The **Nippur almanac**, which reads the flood from the stars, needs the
+deepest yield and the best storage at once. The table is printed in the order a
+city that means to last buys it.
+
+| Node | Cost (bushels) | Requires | Effect |
+| --- | --- | --- | --- |
+| Ox-drawn plough | 400 | — | 2 -> 3 acres per bushel of seed |
+| Fallow fields | 600 | — | +1 bushel per acre |
+| Granaries | 850 | — | the rats eat 1/2 of their share |
+| Manured fields | 1250 | Fallow fields | +1 bushel per acre |
+| Draft teams | 1850 | Ox-drawn plough | 10 -> 12 acres per person |
+| Heavy plough | 2700 | Ox-drawn plough | 3 -> 4 acres per bushel of seed |
+| Crop rotation | 3950 | Manured fields | +1 bushel per acre |
+| Sealed silos | 5800 | Granaries | the rats eat 1/3 of their share |
+| Iron ploughshares | 8500 | Draft teams | 12 -> 14 acres per person |
+| Seed drill | 12450 | Heavy plough | 4 -> 5 acres per bushel of seed |
+| Flood farming | 18200 | Crop rotation | +1 bushel per acre |
+| Temple vaults | 26700 | Sealed silos | the rats eat 1/4 of their share |
+| Harvest crews | 39100 | Iron ploughshares | 14 -> 16 acres per person |
+| Selected seed corn | 57250 | Flood farming | +1 bushel per acre |
+| Nippur almanac | 83900 | Selected seed corn, Temple vaults | +1 bushel per acre, the rats eat 1/5 of their share |
+
+The **fields** branch adds a bushel per planted acre at every rung, so the harvest
+roll of 1–5 can reach 7–11 bushels an acre once the whole branch and the almanac
+are unlocked: it adds at most +6 bushels per planted acre. The **seed** branch lets
+one bushel of seed sow 3, 4 and then 5 acres, the **store** branch makes the rats
+take a half, a third and then a quarter of their share, and the **hands** branch
+lets one person tend 12, 14 and then 16 acres. Every one of those is a *rate*: the
+best rung unlocked is the one in force, and no two of them add up. The rats' share
+is divided by 2 with the granaries, by 3 with the sealed silos, by 4 with the temple
+vaults and by 5 with the almanac, and each of the five field rungs adds its bushel
+to the same roll.
+
+The prices climb by about half again at every rung, and that is what turns the
+programme into the work of a lifetime: the first rungs fit into the opening years,
+the middle ones need the surplus of a good reign, and the last ones cost what many
+harvests leave over. Measured over five hundred marathons, a ruler who spends the
+surplus of each year on the tree and never on the food of the city buys the last
+node in year 86 on the median and finishes the whole tree in 190 of the 500 games;
+the arc of that plan, rung by rung, is in [`balancing.md`](./balancing.md).
+
+Four consequences are worth stating plainly:
+
+- the research is paid **before** the immigration formula runs, so a city that
+  bought technology that year receives slightly fewer newcomers — the price of the
+  school is paid by the city that would have grown;
+- the question is put only when the store can afford at least one node, so a
+  ruler without grain is never asked a question they cannot answer, and the
+  classic game (where the rule set is off) is never asked at all;
+- no draw is added, so the same seed produces exactly the same events with and
+  without the rule set: [`balancing.md`](./balancing.md) measures the two against
+  each other, and a ruler who declines every offer plays the classic term
+  unchanged;
+- the farming technology of a year is read at the start of it, so a node paid for
+  in December shows in the fields of the following year.
+
+The mature tree feeds a city the classic rules cannot feed — in the measured
+marathon the same farmer survives 249 centuries of 500 where the careful ruler
+survives one — but it does not give that city land. A century of good harvests
+doubles the population, so a ruler who wants the acres per person of the verdict
+to hold must buy acres as well; the tree is what pays for them.
 
 ### End of game (after the tenth year)
 
@@ -149,6 +228,8 @@ Each milestone is independently testable and ends with `progress.md` updated.
 | M4 | CLI options & release packaging | `--seed`/`--version` options, `README.md` polish, release metadata in `pyproject.toml` (non-commercial licence, single-sourced version) |
 | M5 | Hardening & polish | Property/simulation tests, docs cross-check, balancing notes |
 | M6 | Term as a documented rule | The marathon rule set and `--years`; the term travels in `GameState`; balancing notes for the century |
+| M7 | Agriculture rule set | The optional `--agriculture` tech tree of §4: `tech.py`, the research step in the engine, the tree in the UI, and the measured trade-off in the balancing notes |
+| M8 | A tree that takes a lifetime | The fifteen-node tree of §4, its price ladder and the measured eighty-five-year plan: the deeper `tech.py`, the progress line in the UI, and the balancing notes re-measured rung by rung |
 
 ### Stretch ideas (after v1.0)
 
@@ -179,6 +260,46 @@ to play a complete, faithful ten-year game in the terminal:
   closing report at the last year, the option's bounds) and keeps
   `docs/balancing.md` honest with a measured marathon batch;
 - `docs/` and `README.md` document both terms and what the marathon measures.
+
+### Target outcome for v1.2 (the agriculture rule set)
+
+`1.2.0` keeps both earlier games as they are — the classic decade stays the
+default and `--years` still chooses the term — and adds the opt-in rule set of §4:
+
+- `hammurabi --agriculture` plays the game with the farming tech tree; without
+  the flag nothing at all changes, not even a random draw;
+- the tree lives in `tech.py` as pure data, the effective farming technology
+  travels in `GameState` (`agriculture`, `unlocked`), and the rules take it as
+  plain arguments that default to the vintage values, so `rules.py` stays free of
+  rule-set knowledge and a classic caller keeps the 1978 numbers;
+- the engine asks for one research a year, only when the rule set is on and the
+  store can afford a node, and pays for it before the newcomers are counted;
+- the suite covers the tree, the research step, the UI's table and the entry
+  point's flag, and `docs/balancing.md` measures the rule set against the classic
+  game: the flag alone is inert, and the tree costs more than it returns in a
+  decade while transforming the marathon;
+- `plan.md`, `README.md` and `docs/architecture.md` document the rule set, the
+  tree and the opt-in flag.
+
+### Target outcome for v1.3 (a tree that takes a lifetime)
+
+`1.3.0` keeps the classic game and the v1.2 rule set as they are — the flag still
+gates every change — and deepens the tree of §4, so that development is a whole
+reign's work rather than a decade's trick:
+
+- the tree grows from six nodes to fifteen, in four branches that meet in the
+  Nippur almanac, and every node changes a figure the ruler sees year after year:
+  acres per bushel of seed, bushels per acre, acres per person or the bushels the
+  rats eat;
+- the prices climb by about half again at every rung, so the first nodes fit into
+  the opening years and the capstone costs 83,900 bushels;
+- the rates do not stack — the best rung unlocked is the one in force — while the
+  harvest bonus of every field rung adds to the same roll;
+- the tree can be finished inside a marathon and not inside a decade: the measured
+  plan buys the capstone in year 86 on the median, and 190 of the 500 marathons buy
+  the whole tree before the term ends;
+- the UI reports how far the programme has come with the research question, and
+  `docs/balancing.md` records the arc of the plan rung by rung.
 
 ## 7. Tech stack
 
